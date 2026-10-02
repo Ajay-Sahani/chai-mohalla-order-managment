@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    >
+
+    <title>Chai Mohalla</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ==============================
+         LOGIN SCREEN
+         ============================== -->
+
+    <section id="loginScreen" class="login-screen">
+
+        <div class="login-card">
+
+            <div class="login-logo">
+                ☕
+            </div>
+
+            <h1>Chai Mohalla</h1>
+            <p class="login-subtitle">Order Management</p>
+
+            <div class="login-form">
+
+                <label for="loginEmail">
+                    Email
+                </label>
+
+                <input
+                    type="email"
+                    id="loginEmail"
+                    placeholder="Enter your email"
+                    autocomplete="email"
+                >
+
+                <label for="loginPassword">
+                    Password
+                </label>
+
+                <input
+                    type="password"
+                    id="loginPassword"
+                    placeholder="Enter your password"
+                    autocomplete="current-password"
+                >
+
+                <button
+                    type="button"
+                    class="primary-button login-button"
+                    onclick="loginUser()"
+                >
+                    Login
+                </button>
+
+                <p id="loginError" class="login-error"></p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ==============================
+         MAIN APP
+         ============================== -->
+
+    <div id="appContent" class="app-content hidden">
+
+        <!-- HEADER -->
+
+        <header class="app-header">
+
+            <div class="header-left">
+
+                <div class="header-logo">
+                    ☕
+                </div>
+
+                <div>
+                    <h1>Chai Mohalla</h1>
+                    <span id="userRole">Staff</span>
+                </div>
+
+            </div>
+
+            <button
+                type="button"
+                class="logout-button"
+                onclick="logoutUser()"
+            >
+                Logout
+            </button>
+
+        </header>
+
+
+        <!-- ==============================
+             PAGE CONTENT
+             ============================== -->
+
+        <main class="main-content">
+
+            <!-- ==============================
+                 NEW ORDER
+                 ============================== -->
+
+            <section
+                id="newOrderPage"
+                class="page active-page"
+            >
+
+                <div class="page-header">
+
+                    <div>
+                        <h2>New Order</h2>
+                        <p>Create a new customer order</p>
+                    </div>
+
+                    <div class="cart-button-wrapper">
+
+                        <button
+                            type="button"
+                            class="cart-button"
+                            onclick="openCart()"
+                        >
+                            🛒
+                            <span>Cart</span>
+                            <b id="cartCount">0</b>
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <!-- MENU -->
+
+                <div
+                    id="menuContainer"
+                    class="menu-container"
+                ></div>
+
+            </section>
+
+
+            <!-- ==============================
+                 ACTIVE ORDERS
+                 ============================== -->
+
+            <section
+                id="activePage"
+                class="page"
+            >
+
+                <div class="page-header">
+
+                    <div>
+                        <h2>Active Orders</h2>
+                        <p>Orders currently being handled</p>
+                    </div>
+
+                </div>
+
+
+                <!-- SEARCH -->
+
+                <div class="order-search">
+
+                    <input
+                        type="text"
+                        id="orderSearch"
+                        placeholder="Search customer name or token..."
+                        oninput="filterOrders()"
+                    >
+
+                </div>
+
+
+                <!-- ACTIVE ORDERS -->
+
+                <div
+                    id="activeOrdersContainer"
+                    class="orders-container"
+                ></div>
+
+            </section>
+
+
+            <!-- ==============================
+                 TODAY
+                 ============================== -->
+
+            <section
+                id="todayPage"
+                class="page"
+            >
+
+                <div class="page-header">
+
+                    <div>
+                        <h2>Today's Orders</h2>
+                        <p>Complete order activity for today</p>
+                    </div>
+
+                </div>
+
+
+                <!-- ==============================
+                     TODAY'S SUMMARY
+                     ============================== -->
+
+                <div class="today-summary-section">
+
+                    <div class="today-summary-header">
+
+                        <div>
+
+                            <h2>Today's Summary</h2>
+
+                            <p id="summaryDate">
+                                Today's order overview
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="today-summary-grid">
+
+                        <div class="summary-card">
+
+                            <span>Total Orders</span>
+
+                            <strong id="summaryOrders">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="summary-card">
+
+                            <span>New</span>
+
+                            <strong id="summaryNew">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="summary-card">
+
+                            <span>Preparing</span>
+
+                            <strong id="summaryPreparing">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="summary-card">
+
+                            <span>Completed</span>
+
+                            <strong id="summaryCompleted">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="summary-card">
+
+                            <span>Cancelled</span>
+
+                            <strong id="summaryCancelled">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="summary-card sales-card">
+
+                            <span>Total Sales</span>
+
+                            <strong id="summarySales">
+                                ₹0
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- TODAY'S ORDERS -->
+
+                <div
+                    id="todayOrdersContainer"
+                    class="orders-container"
+                ></div>
+
+            </section>
+
+
+            <!-- ==============================
+                 MENU SETTINGS
+                 ADMIN ONLY
+                 ============================== -->
+
+            <section
+                id="menuSettingsPage"
+                class="page"
+            >
+
+                <div class="page-header">
+
+                    <div>
+                        <h2>Menu Management</h2>
+                        <p>Manage items, prices and customizations</p>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="primary-button"
+                        onclick="openAddMenuItem()"
+                    >
+                        + Add Item
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="menuSettingsContainer"
+                    class="menu-settings-container"
+                ></div>
+
+            </section>
+
+        </main>
+
+
+        <!-- ==============================
+             BOTTOM NAVIGATION
+             ============================== -->
+
+        <nav class="bottom-nav">
+
+            <button
+                type="button"
+                class="nav-button active"
+                id="newOrderNav"
+                onclick="showPage('newOrderPage', this)"
+            >
+                <span class="nav-icon">＋</span>
+                <span>New Order</span>
+            </button>
+
+
+            <button
+                type="button"
+                class="nav-button"
+                id="activeNav"
+                onclick="showPage('activePage', this)"
+            >
+                <span class="nav-icon">📋</span>
+                <span>Active</span>
+            </button>
+
+
+            <button
+                type="button"
+                class="nav-button"
+                id="todayNav"
+                onclick="showPage('todayPage', this)"
+            >
+                <span class="nav-icon">📊</span>
+                <span>Today</span>
+            </button>
+
+
+            <button
+                type="button"
+                class="nav-button hidden"
+                id="menuSettingsButton"
+                onclick="showPage('menuSettingsPage', this)"
+            >
+                <span class="nav-icon">⚙️</span>
+                <span>Menu</span>
+            </button>
+
+        </nav>
+
+    </div>
+
+
+    <!-- ==============================
+         CUSTOMIZATION MODAL
+         ============================== -->
+
+    <div
+        id="customizationModal"
+        class="modal hidden"
+    >
+
+        <div class="modal-overlay" onclick="closeCustomization()"></div>
+
+        <div class="modal-card">
+
+            <div class="modal-header">
+
+                <div>
+                    <h2 id="customizationTitle">
+                        Customize Item
+                    </h2>
+
+                    <p id="customizationPrice">
+                        ₹0
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="close-button"
+                    onclick="closeCustomization()"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <div
+                id="customizationOptions"
+                class="customization-options"
+            ></div>
+
+
+            <div class="customization-section">
+
+                <label>
+                    Quantity
+                </label>
+
+                <div class="quantity-control">
+
+                    <button
+                        type="button"
+                        onclick="changeCustomQuantity(-1)"
+                    >
+                        −
+                    </button>
+
+                    <strong id="customQuantity">
+                        1
+                    </strong>
+
+                    <button
+                        type="button"
+                        onclick="changeCustomQuantity(1)"
+                    >
+                        +
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div class="customization-section">
+
+                <label for="customNote">
+                    Special Instructions
+                </label>
+
+                <textarea
+                    id="customNote"
+                    placeholder="Example: Less spicy, less sugar..."
+                ></textarea>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="primary-button full-width"
+                onclick="addCustomizedItem()"
+            >
+                Add to Cart
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- ==============================
+         CART MODAL
+         ============================== -->
+
+    <div
+        id="cartModal"
+        class="modal hidden"
+    >
+
+        <div class="modal-overlay" onclick="closeCart()"></div>
+
+        <div class="modal-card cart-modal-card">
+
+            <div class="modal-header">
+
+                <div>
+                    <h2>Your Order</h2>
+                    <p>Review before placing</p>
+                </div>
+
+                <button
+                    type="button"
+                    class="close-button"
+                    onclick="closeCart()"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <div
+                id="cartItems"
+                class="cart-items"
+            ></div>
+
+
+            <div class="cart-total-row">
+
+                <span>Total</span>
+
+                <strong id="cartTotal">
+                    ₹0
+                </strong>
+
+            </div>
+
+
+            <div class="checkout-section">
+
+                <label for="customerName">
+                    Customer Name
+                </label>
+
+                <input
+                    type="text"
+                    id="customerName"
+                    placeholder="Enter customer name"
+                >
+
+
+                <label for="orderType">
+                    Order Type
+                </label>
+
+                <select id="orderType">
+
+                    <option value="Dine">
+                        Dine
+                    </option>
+
+                    <option value="Pack">
+                        Pack
+                    </option>
+
+                </select>
+
+
+                <label for="paymentMethod">
+                    Payment
+                </label>
+
+                <select id="paymentMethod">
+
+                    <option value="Cash">
+                        Cash
+                    </option>
+
+                    <option value="UPI">
+                        UPI
+                    </option>
+
+                    <option value="Card">
+                        Card
+                    </option>
+
+                    <option value="Pending">
+                        Pending
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="primary-button full-width"
+                onclick="placeOrder()"
+            >
+                Place Order
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- ==============================
+         MENU EDITOR MODAL
+         ============================== -->
+
+    <div
+        id="menuEditorModal"
+        class="modal hidden"
+    >
+
+        <div
+            class="modal-overlay"
+            onclick="closeMenuEditor()"
+        ></div>
+
+        <div class="modal-card">
+
+            <div class="modal-header">
+
+                <div>
+                    <h2 id="menuEditorTitle">
+                        Add Menu Item
+                    </h2>
+
+                    <p>
+                        Manage menu details
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="close-button"
+                    onclick="closeMenuEditor()"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="menuItemName">
+                    Item Name
+                </label>
+
+                <input
+                    type="text"
+                    id="menuItemName"
+                    placeholder="Example: Paneer Paratha"
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="menuItemCategory">
+                    Category
+                </label>
+
+                <input
+                    type="text"
+                    id="menuItemCategory"
+                    placeholder="Example: Paratha"
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="menuItemPrice">
+                    Base Price
+                </label>
+
+                <input
+                    type="number"
+                    id="menuItemPrice"
+                    min="0"
+                    step="1"
+                    placeholder="100"
+                >
+
+            </div>
+
+
+            <div class="editor-section">
+
+                <div class="editor-section-header">
+
+                    <h3>Add-ons</h3>
+
+                    <button
+                        type="button"
+                        class="small-button"
+                        onclick="addAddonField()"
+                    >
+                        + Add
+                    </button>
+
+                </div>
+
+                <div
+                    id="addonFields"
+                    class="editor-fields"
+                ></div>
+
+            </div>
+
+
+            <div class="editor-section">
+
+                <div class="editor-section-header">
+
+                    <h3>Styles</h3>
+
+                    <button
+                        type="button"
+                        class="small-button"
+                        onclick="addStyleField()"
+                    >
+                        + Add
+                    </button>
+
+                </div>
+
+                <div
+                    id="styleFields"
+                    class="editor-fields"
+                ></div>
+
+            </div>
+
+
+            <div class="form-group checkbox-group">
+
+                <label>
+
+                    <input
+                        type="checkbox"
+                        id="menuItemActive"
+                        checked
+                    >
+
+                    Active
+
+                </label>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="primary-button full-width"
+                onclick="saveMenuItem()"
+            >
+                Save Menu Item
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- ==============================
+         ORDER DETAILS MODAL
+         ============================== -->
+
+    <div
+        id="orderDetailsModal"
+        class="modal hidden"
+    >
+
+        <div
+            class="modal-overlay"
+            onclick="closeOrderDetails()"
+        ></div>
+
+        <div class="modal-card">
+
+            <div class="modal-header">
+
+                <div>
+                    <h2>Order Details</h2>
+                    <p>Complete order information</p>
+                </div>
+
+                <button
+                    type="button"
+                    class="close-button"
+                    onclick="closeOrderDetails()"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <div
+                id="orderDetailsContent"
+                class="order-details-content"
+            ></div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ==============================
+         SUPABASE
+         ============================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="app.js"></script>
+
+</body>
+</html>

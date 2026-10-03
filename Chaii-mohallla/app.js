@@ -1,5 +1,23 @@
+/* =========================================================
+   CHAI MOHALLA ORDER MANAGEMENT
+   Supabase + Vanilla JavaScript
+========================================================= */
+
+
+/* =========================================================
+   SUPABASE CONFIG
+========================================================= */
+
+// Put your existing Supabase project values here.
+
 const SUPABASE_URL = "https://tvaczmcdvqaiworrjsjw.supabase.co";
+
 const SUPABASE_KEY = "sb_publishable_G0Ev8UdENIu5r_leRDoXuQ_eVEJmTeD";
+
+
+/* =========================================================
+   SUPABASE INITIALIZATION
+========================================================= */
 
 const supabaseClient = window.supabase.createClient(
     SUPABASE_URL,
@@ -7,25 +25,30 @@ const supabaseClient = window.supabase.createClient(
 );
 
 
-// =====================================================
-// GLOBAL STATE
-// =====================================================
+/* =========================================================
+   GLOBAL STATE
+========================================================= */
 
 let currentUser = null;
 let currentProfile = null;
 
 let menuItems = [];
+let allOrders = [];
+
 let cart = [];
 
 let currentCustomItem = null;
-let currentCustomIndex = null;
-
-let currentEditingMenuId = null;
+let customQuantity = 1;
 
 let realtimeChannel = null;
 
+let editingMenuItemId = null;
 
-// Fixed menu order
+
+/* =========================================================
+   FIXED MENU ORDER
+========================================================= */
+
 const menuOrder = [
     "Aaloo Pyaz",
     "Paneer Paratha",
@@ -39,557 +62,1071 @@ const menuOrder = [
 ];
 
 
-// =====================================================
-// START APP
-// =====================================================
+/* =========================================================
+   INITIALIZATION
+========================================================= */
 
 document.addEventListener("DOMContentLoaded", () => {
     checkLogin();
 });
 
 
-// =====================================================
-// AUTH
-// =====================================================
+/* =========================================================
+   AUTH
+========================================================= */
 
 async function checkLogin() {
-    const {
-        data: { session }
-    } = await supabaseClient.auth.getSession();
 
-    if (session) {
-        currentUser = session.user;
-        await showApp();
-    } else {
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient.auth.getSession();
+
+        if (error) {
+            console.error("Session error:", error);
+            showLogin();
+            return;
+        }
+
+        const session = data?.session;
+
+        if (session) {
+
+            currentUser = session.user;
+
+            await showApp();
+
+        } else {
+
+            showLogin();
+
+        }
+
+    } catch (error) {
+
+        console.error("Login check error:", error);
+
         showLogin();
     }
 }
 
 
-function showLogin() {
-    const loginScreen = document.getElementById("loginScreen");
-    const appContent = document.getElementById("appContent");
-
-    if (loginScreen) loginScreen.style.display = "flex";
-    if (appContent) appContent.style.display = "none";
-}
-
+/* =========================================================
+   LOGIN
+========================================================= */
 
 async function loginUser() {
-    const email = document.getElementById("loginEmail")?.value.trim();
-    const password = document.getElementById("loginPassword")?.value;
 
-    const errorBox = document.getElementById("loginError");
+    const email =
+        document.getElementById("loginEmail")?.value.trim();
 
-    if (errorBox) {
-        errorBox.textContent = "";
-        errorBox.style.display = "none";
+    const password =
+        document.getElementById("loginPassword")?.value;
+
+    const errorElement =
+        document.getElementById("loginError");
+
+    if (errorElement) {
+        errorElement.textContent = "";
     }
 
     if (!email || !password) {
-        showLoginError("Please enter your email and password.");
+
+        if (errorElement) {
+            errorElement.textContent =
+                "Please enter email and password.";
+        }
+
         return;
     }
 
-    const { data, error } =
-        await supabaseClient.auth.signInWithPassword({
+    const button =
+        document.querySelector(".login-button");
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = "Logging in...";
+    }
+
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient.auth.signInWithPassword({
             email,
             password
         });
 
-    if (error) {
-        showLoginError(getFriendlyLoginError(error));
-        return;
+        if (error) {
+            throw error;
+        }
+
+        currentUser = data.user;
+
+        await showApp();
+
+    } catch (error) {
+
+        console.error("Login error:", error);
+
+        if (errorElement) {
+            errorElement.textContent =
+                error.message || "Login failed.";
+        }
+
+    } finally {
+
+        if (button) {
+            button.disabled = false;
+            button.textContent = "Login";
+        }
     }
-
-    currentUser = data.user;
-
-    await showApp();
 }
 
 
-function getFriendlyLoginError(error) {
-    if (!error) return "Login failed.";
-
-    if (
-        error.message?.toLowerCase().includes("invalid login credentials")
-    ) {
-        return "Incorrect email or password.";
-    }
-
-    if (
-        error.message?.toLowerCase().includes("email not confirmed")
-    ) {
-        return "Please confirm your email before logging in.";
-    }
-
-    return error.message;
-}
-
-
-function showLoginError(message) {
-    const errorBox = document.getElementById("loginError");
-
-    if (!errorBox) {
-        alert(message);
-        return;
-    }
-
-    errorBox.textContent = message;
-    errorBox.style.display = "block";
-}
-
+/* =========================================================
+   LOGOUT
+========================================================= */
 
 async function logoutUser() {
-    await supabaseClient.auth.signOut();
 
-    currentUser = null;
-    currentProfile = null;
-    cart = [];
+    try {
 
-    if (realtimeChannel) {
-        await supabaseClient.removeChannel(realtimeChannel);
-        realtimeChannel = null;
+        if (realtimeChannel) {
+            await supabaseClient
+                .removeChannel(realtimeChannel);
+
+            realtimeChannel = null;
+        }
+
+        await supabaseClient.auth.signOut();
+
+        currentUser = null;
+        currentProfile = null;
+
+        cart = [];
+        menuItems = [];
+        allOrders = [];
+
+        showLogin();
+
+    } catch (error) {
+
+        console.error("Logout error:", error);
     }
-
-    showLogin();
 }
 
 
-// =====================================================
-// SHOW APP
-// =====================================================
+/* =========================================================
+   LOGIN / APP DISPLAY
+========================================================= */
+
+function showLogin() {
+
+    const loginScreen =
+        document.getElementById("loginScreen");
+
+    const appContent =
+        document.getElementById("appContent");
+
+    if (loginScreen) {
+        loginScreen.classList.remove("hidden");
+        loginScreen.style.display = "flex";
+    }
+
+    if (appContent) {
+        appContent.classList.add("hidden");
+        appContent.style.display = "none";
+    }
+}
+
 
 async function showApp() {
-    const loginScreen = document.getElementById("loginScreen");
-    const appContent = document.getElementById("appContent");
 
-    if (loginScreen) loginScreen.style.display = "none";
-    if (appContent) appContent.style.display = "block";
+    const loginScreen =
+        document.getElementById("loginScreen");
+
+    const appContent =
+        document.getElementById("appContent");
+
+    if (loginScreen) {
+        loginScreen.classList.add("hidden");
+        loginScreen.style.display = "none";
+    }
+
+    if (appContent) {
+        appContent.classList.remove("hidden");
+        appContent.style.display = "block";
+    }
 
     await initializeApp();
 }
 
 
+/* =========================================================
+   INITIALIZE APPLICATION
+========================================================= */
+
 async function initializeApp() {
-    await loadUserProfile();
-    applyPermissions();
 
-    await loadMenu();
-    await renderActiveOrders();
-    await renderTodayOrders();
+    try {
 
-    updateTodaySummary();
+        await loadUserProfile();
 
-    setupRealtime();
+        applyPermissions();
 
-    showPage("newOrderPage");
+        await loadMenu();
+
+        await loadOrders();
+
+        renderActiveOrders();
+
+        renderTodayOrders();
+
+        updateTodaySummary();
+
+        setupRealtime();
+
+        showPage("newOrderPage");
+
+    } catch (error) {
+
+        console.error(
+            "Application initialization error:",
+            error
+        );
+    }
 }
 
 
-// =====================================================
-// PROFILE / PERMISSIONS
-// =====================================================
+/* =========================================================
+   PROFILE
+========================================================= */
 
 async function loadUserProfile() {
-    if (!currentUser) return;
 
-    const { data, error } = await supabaseClient
-        .from("profiles")
-        .select("*")
-        .eq("id", currentUser.id)
-        .single();
-
-    if (error) {
-        console.error("Profile error:", error);
-        currentProfile = {
-            id: currentUser.id,
-            name: currentUser.email,
-            role: "staff"
-        };
+    if (!currentUser) {
         return;
     }
 
-    currentProfile = data;
+    try {
 
-    const roleElement = document.getElementById("userRole");
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .from("profiles")
+            .select("*")
+            .eq("id", currentUser.id)
+            .maybeSingle();
+
+        if (error) {
+            console.error(
+                "Profile loading error:",
+                error
+            );
+        }
+
+        if (data) {
+
+            currentProfile = data;
+
+        } else {
+
+            currentProfile = {
+                id: currentUser.id,
+                name:
+                    currentUser.email ||
+                    "Staff",
+                role: "staff"
+            };
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Profile error:",
+            error
+        );
+
+        currentProfile = {
+            id: currentUser.id,
+            name:
+                currentUser.email ||
+                "Staff",
+            role: "staff"
+        };
+    }
+
+
+    const roleElement =
+        document.getElementById("userRole");
 
     if (roleElement) {
-        roleElement.textContent =
-            currentProfile.role === "admin"
+
+        const role =
+            currentProfile?.role === "admin"
                 ? "Admin"
                 : "Staff";
+
+        roleElement.textContent =
+            `${currentProfile?.name || "User"} • ${role}`;
     }
 }
 
 
+/* =========================================================
+   PERMISSIONS
+========================================================= */
+
 function isAdmin() {
+
     return currentProfile?.role === "admin";
 }
 
 
 function applyPermissions() {
-    const menuSettingsButton =
-        document.getElementById("menuSettingsButton");
 
-    if (menuSettingsButton) {
-        menuSettingsButton.style.display =
-            isAdmin() ? "block" : "none";
+    const adminElements =
+        document.querySelectorAll(".admin-only");
+
+    adminElements.forEach(element => {
+
+        element.style.display =
+            isAdmin()
+                ? ""
+                : "none";
+    });
+}
+
+
+/* =========================================================
+   MENU LOADING
+========================================================= */
+
+async function loadMenu() {
+
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .from("menu_items")
+            .select("*")
+            .eq("active", true);
+
+        if (error) {
+            throw error;
+        }
+
+        menuItems = data || [];
+
+        sortMenu();
+
+        renderMenu();
+
+        renderMenuSettings();
+
+    } catch (error) {
+
+        console.error(
+            "Menu loading error:",
+            error
+        );
+
+        menuItems = [];
+
+        renderMenu();
+
+        renderMenuSettings();
     }
 }
 
 
-// =====================================================
-// MENU
-// =====================================================
-
-async function loadMenu() {
-    const { data, error } = await supabaseClient
-        .from("menu_items")
-        .select("*")
-        .eq("active", true);
-
-    if (error) {
-        console.error("Menu loading error:", error);
-        return;
-    }
-
-    menuItems = data || [];
+function sortMenu() {
 
     menuItems.sort((a, b) => {
-        const indexA = menuOrder.indexOf(a.name);
-        const indexB = menuOrder.indexOf(b.name);
 
-        const safeA = indexA === -1 ? 999 : indexA;
-        const safeB = indexB === -1 ? 999 : indexB;
+        const indexA =
+            menuOrder.indexOf(a.name);
+
+        const indexB =
+            menuOrder.indexOf(b.name);
+
+        const safeA =
+            indexA === -1
+                ? 999
+                : indexA;
+
+        const safeB =
+            indexB === -1
+                ? 999
+                : indexB;
 
         return safeA - safeB;
     });
-
-    renderMenu();
 }
 
 
+/* =========================================================
+   RENDER MENU
+========================================================= */
+
 function renderMenu() {
-    const container = document.getElementById("menuContainer");
 
-    if (!container) return;
+    const container =
+        document.getElementById("menuContainer");
 
-    container.innerHTML = "";
+    if (!container) {
+        return;
+    }
 
     if (!menuItems.length) {
+
         container.innerHTML = `
             <div class="empty-state">
                 No menu items available.
             </div>
         `;
+
         return;
     }
 
-    menuItems.forEach(item => {
-        const card = document.createElement("div");
+    container.innerHTML =
+        menuItems.map(item => {
 
-        card.className = "menu-card";
+            return `
+                <div
+                    class="menu-card"
+                    data-menu-name="${escapeHtml(item.name)}"
+                >
 
-        card.innerHTML = `
-            <div class="menu-card-header">
-                <div>
-                    <div class="menu-category">
-                        ${escapeHtml(item.category || "")}
+                    <div class="menu-card-top">
+
+                        <div>
+
+                            <h3>
+                                ${escapeHtml(item.name)}
+                            </h3>
+
+                            <div class="menu-category">
+                                ${escapeHtml(item.category || "")}
+                            </div>
+
+                        </div>
+
+                        <div class="menu-price">
+                            ₹${formatMoney(item.price)}
+                        </div>
+
                     </div>
 
-                    <h3>${escapeHtml(item.name)}</h3>
+                    <div class="menu-card-bottom">
+
+                        <button
+                            class="add-item-button"
+                            onclick="openCustomization('${item.id}')"
+                        >
+                            Customize & Add
+                        </button>
+
+                    </div>
+
                 </div>
+            `;
 
-                <div class="menu-price">
-                    ₹${Number(item.price).toFixed(0)}
-                </div>
-            </div>
+        }).join("");
+}
 
-            <button
-                class="menu-add-button"
-                onclick="openCustomization('${item.id}')"
-            >
-                Add
-            </button>
-        `;
 
-        container.appendChild(card);
+/* =========================================================
+   MENU SEARCH
+========================================================= */
+
+function searchMenu() {
+
+    const searchInput =
+        document.getElementById("menuSearch");
+
+    const search =
+        searchInput?.value
+            .trim()
+            .toLowerCase() || "";
+
+    const cards =
+        document.querySelectorAll(".menu-card");
+
+    cards.forEach(card => {
+
+        const name =
+            card
+                .getAttribute("data-menu-name")
+                ?.toLowerCase() || "";
+
+        card.style.display =
+            name.includes(search)
+                ? ""
+                : "none";
     });
 }
 
 
-// =====================================================
-// CUSTOMIZATION
-// =====================================================
+/* =========================================================
+   CUSTOMIZATION
+========================================================= */
 
-function openCustomization(itemId, cartIndex = null) {
-    const item = menuItems.find(x => x.id === itemId);
+function openCustomization(itemId) {
 
-    if (!item) return;
+    const item =
+        menuItems.find(
+            menuItem =>
+                String(menuItem.id) ===
+                String(itemId)
+        );
+
+    if (!item) {
+        return;
+    }
 
     currentCustomItem = item;
-    currentCustomIndex = cartIndex;
+    customQuantity = 1;
 
-    const modal = document.getElementById("customizationModal");
+    const modal =
+        document.getElementById(
+            "customizationModal"
+        );
 
-    const title = document.getElementById("customizationTitle");
-    const price = document.getElementById("customizationPrice");
-    const quantity = document.getElementById("customQuantity");
-    const note = document.getElementById("customNote");
+    const title =
+        document.getElementById(
+            "customizationTitle"
+        );
+
+    const price =
+        document.getElementById(
+            "customizationPrice"
+        );
+
+    const quantity =
+        document.getElementById(
+            "customQuantity"
+        );
+
+    const note =
+        document.getElementById(
+            "customNote"
+        );
 
     if (title) {
         title.textContent = item.name;
     }
 
     if (price) {
-        price.textContent = `₹${Number(item.price).toFixed(0)}`;
+        price.textContent =
+            `₹${formatMoney(item.price)}`;
     }
 
-    if (cartIndex !== null && cart[cartIndex]) {
-        quantity.value = cart[cartIndex].quantity || 1;
-        note.value = cart[cartIndex].note || "";
-    } else {
-        quantity.value = 1;
+    if (quantity) {
+        quantity.textContent = "1";
+    }
+
+    if (note) {
         note.value = "";
     }
 
     renderCustomizationOptions(item);
 
-    if (modal) {
-        modal.style.display = "flex";
-    }
+    modal?.classList.remove("hidden");
 }
 
 
 function closeCustomization() {
-    const modal =
-        document.getElementById("customizationModal");
 
-    if (modal) {
-        modal.style.display = "none";
-    }
+    document
+        .getElementById("customizationModal")
+        ?.classList.add("hidden");
 
     currentCustomItem = null;
-    currentCustomIndex = null;
+    customQuantity = 1;
 }
 
 
+function changeCustomQuantity(change) {
+
+    customQuantity += Number(change);
+
+    if (customQuantity < 1) {
+        customQuantity = 1;
+    }
+
+    if (customQuantity > 99) {
+        customQuantity = 99;
+    }
+
+    const element =
+        document.getElementById(
+            "customQuantity"
+        );
+
+    if (element) {
+        element.textContent =
+            String(customQuantity);
+    }
+}
+
+
+/* =========================================================
+   CUSTOMIZATION ADDONS
+========================================================= */
+
 function renderCustomizationOptions(item) {
+
     const container =
-        document.getElementById("customizationOptions");
+        document.getElementById(
+            "customizationOptions"
+        );
 
-    if (!container) return;
-
-    container.innerHTML = "";
-
-    const addons = Array.isArray(item.addons)
-        ? item.addons
-        : [];
-
-    if (!addons.length) {
-        container.innerHTML = `
-            <p class="no-options">
-                No add-ons available for this item.
-            </p>
-        `;
+    if (!container) {
         return;
     }
 
-    addons.forEach((addon, index) => {
-        const addonName = escapeHtml(addon.name);
-        const addonPrice = Number(addon.price || 0);
+    const addons =
+        Array.isArray(item.addons)
+            ? item.addons
+            : [];
 
-        let existingQty = 0;
+    if (!addons.length) {
 
-        if (
-            currentCustomIndex !== null &&
-            cart[currentCustomIndex]?.addons
-        ) {
-            const existing = cart[currentCustomIndex].addons.find(
-                x => x.name === addon.name
-            );
-
-            if (existing) {
-                existingQty = Number(existing.quantity || 0);
-            }
-        }
-
-        const option = document.createElement("div");
-
-        option.className = "custom-option";
-
-        option.innerHTML = `
-            <div class="custom-option-info">
-                <span>${addonName}</span>
-                <small>+₹${addonPrice}</small>
-            </div>
-
-            <div class="addon-quantity">
-                <button
-                    type="button"
-                    class="addon-minus"
-                    data-index="${index}"
-                >
-                    −
-                </button>
-
-                <span
-                    class="addon-qty"
-                    id="addonQty${index}"
-                >
-                    ${existingQty}
-                </span>
-
-                <button
-                    type="button"
-                    class="addon-plus"
-                    data-index="${index}"
-                >
-                    +
-                </button>
-            </div>
+        container.innerHTML = `
+            <h3>Customization</h3>
+            <p class="menu-category">
+                No paid add-ons available.
+            </p>
         `;
 
-        container.appendChild(option);
-    });
+        return;
+    }
 
-    container
-        .querySelectorAll(".addon-minus")
-        .forEach(button => {
-            button.addEventListener("click", () => {
-                const index =
-                    Number(button.dataset.index);
+    container.innerHTML = `
+        <h3>Add-ons</h3>
 
-                const qtyElement =
-                    document.getElementById(
-                        `addonQty${index}`
-                    );
+        ${addons.map((addon, index) => {
 
-                let qty =
-                    Number(qtyElement.textContent);
+            const name =
+                addon?.name || "Add-on";
 
-                qty = Math.max(0, qty - 1);
+            const price =
+                Number(addon?.price || 0);
 
-                qtyElement.textContent = qty;
-            });
-        });
+            return `
+                <div class="custom-option">
 
-    container
-        .querySelectorAll(".addon-plus")
-        .forEach(button => {
-            button.addEventListener("click", () => {
-                const index =
-                    Number(button.dataset.index);
+                    <div>
 
-                const qtyElement =
-                    document.getElementById(
-                        `addonQty${index}`
-                    );
+                        <div class="custom-option-name">
+                            ${escapeHtml(name)}
+                        </div>
 
-                let qty =
-                    Number(qtyElement.textContent);
+                        <div class="custom-option-price">
+                            +₹${formatMoney(price)}
+                        </div>
 
-                qty += 1;
+                    </div>
 
-                qtyElement.textContent = qty;
-            });
-        });
+                    <div class="addon-control">
+
+                        <button
+                            type="button"
+                            onclick="changeAddonQuantity(${index}, -1)"
+                        >
+                            −
+                        </button>
+
+                        <span
+                            class="addon-qty"
+                            id="addonQty${index}"
+                        >
+                            0
+                        </span>
+
+                        <button
+                            type="button"
+                            onclick="changeAddonQuantity(${index}, 1)"
+                        >
+                            +
+                        </button>
+
+                    </div>
+
+                </div>
+            `;
+
+        }).join("")}
+    `;
 }
 
 
-// =====================================================
-// CUSTOM QUANTITY
-// =====================================================
+function changeAddonQuantity(
+    index,
+    change
+) {
 
-function changeCustomQuantity(amount) {
-    const quantity =
-        document.getElementById("customQuantity");
+    const element =
+        document.getElementById(
+            `addonQty${index}`
+        );
 
-    if (!quantity) return;
+    if (!element) {
+        return;
+    }
 
-    let value = Number(quantity.value || 1);
+    let quantity =
+        Number(element.textContent || 0);
 
-    value += amount;
+    quantity += Number(change);
 
-    value = Math.max(1, value);
+    if (quantity < 0) {
+        quantity = 0;
+    }
 
-    quantity.value = value;
+    if (quantity > 99) {
+        quantity = 99;
+    }
+
+    element.textContent =
+        String(quantity);
 }
 
 
-// =====================================================
-// ADD CUSTOMIZED ITEM TO CART
-// =====================================================
+/* =========================================================
+   ADD CUSTOMIZED ITEM TO CART
+========================================================= */
 
 function addCustomizedItem() {
-    if (!currentCustomItem) return;
 
-    const quantityElement =
-        document.getElementById("customQuantity");
+    if (!currentCustomItem) {
+        return;
+    }
 
-    const noteElement =
-        document.getElementById("customNote");
+    const item =
+        currentCustomItem;
 
-    const quantity =
-        Math.max(1, Number(quantityElement?.value || 1));
+    const addons =
+        Array.isArray(item.addons)
+            ? item.addons
+            : [];
 
-    const note =
-        noteElement?.value?.trim() || "";
+    const selectedAddons = [];
 
-    const addons = [];
+    addons.forEach((addon, index) => {
 
-    const itemAddons = Array.isArray(
-        currentCustomItem.addons
-    )
-        ? currentCustomItem.addons
-        : [];
+        const quantityElement =
+            document.getElementById(
+                `addonQty${index}`
+            );
 
-    itemAddons.forEach((addon, index) => {
-        const qtyElement =
-            document.getElementById(`addonQty${index}`);
+        const quantity =
+            Number(
+                quantityElement?.textContent || 0
+            );
 
-        const qty =
-            Number(qtyElement?.textContent || 0);
+        if (quantity > 0) {
 
-        if (qty > 0) {
-            addons.push({
-                name: addon.name,
-                price: Number(addon.price || 0),
-                quantity: qty
+            selectedAddons.push({
+
+                name:
+                    addon.name,
+
+                price:
+                    Number(addon.price || 0),
+
+                quantity
             });
         }
     });
 
+
+    const note =
+        document
+            .getElementById("customNote")
+            ?.value
+            .trim() || "";
+
+
     const cartItem = {
-        menu_item_id: currentCustomItem.id,
-        name: currentCustomItem.name,
-        base_price: Number(currentCustomItem.price),
-        quantity,
-        addons,
+
+        cart_id:
+            `${Date.now()}-${Math.random()
+                .toString(36)
+                .substring(2, 9)}`,
+
+        menu_item_id:
+            item.id,
+
+        name:
+            item.name,
+
+        base_price:
+            Number(item.price || 0),
+
+        quantity:
+            customQuantity,
+
+        addons:
+            selectedAddons,
+
         note
     };
 
-    // Edit existing cart item
-    if (
-        currentCustomIndex !== null &&
-        cart[currentCustomIndex]
-    ) {
-        cart[currentCustomIndex] = cartItem;
-    } else {
-        cart.push(cartItem);
-    }
 
-    renderCart();
+    cart.push(cartItem);
+
+    updateCartCount();
+
     closeCustomization();
+
+    showToast(
+        `${item.name} added to cart.`
+    );
 }
 
 
-// =====================================================
-// CART
-// =====================================================
+/* =========================================================
+   CART
+========================================================= */
+
+function openCart() {
+
+    renderCart();
+
+    document
+        .getElementById("cartModal")
+        ?.classList.remove("hidden");
+}
+
+
+function closeCart() {
+
+    document
+        .getElementById("cartModal")
+        ?.classList.add("hidden");
+}
+
+
+function renderCart() {
+
+    const container =
+        document.getElementById("cartItems");
+
+    const totalElement =
+        document.getElementById("cartTotal");
+
+    if (!container) {
+        return;
+    }
+
+
+    if (!cart.length) {
+
+        container.innerHTML = `
+            <div class="empty-state">
+                Your cart is empty.
+            </div>
+        `;
+
+        if (totalElement) {
+            totalElement.textContent = "₹0";
+        }
+
+        return;
+    }
+
+
+    container.innerHTML =
+        cart.map(item => {
+
+            const itemTotal =
+                calculateCartItemTotal(item);
+
+            const addonsHtml =
+                Array.isArray(item.addons)
+                    ? item.addons
+                        .map(addon => {
+
+                            return `
+                                <div class="cart-addon">
+                                    ${escapeHtml(addon.name)}
+                                    × ${addon.quantity}
+                                    (+₹${formatMoney(
+                                        Number(addon.price || 0) *
+                                        Number(addon.quantity || 0)
+                                    )})
+                                </div>
+                            `;
+
+                        })
+                        .join("")
+                    : "";
+
+
+            return `
+                <div class="cart-item">
+
+                    <div class="cart-item-header">
+
+                        <div class="cart-item-name">
+                            ${escapeHtml(item.name)}
+                        </div>
+
+                        <div class="cart-item-price">
+                            ₹${formatMoney(itemTotal)}
+                        </div>
+
+                    </div>
+
+
+                    <div class="cart-item-meta">
+
+                        Base:
+                        ₹${formatMoney(item.base_price)}
+                        × ${item.quantity}
+
+                        ${addonsHtml}
+
+                        ${
+                            item.note
+                                ? `<div>
+                                    Note: ${escapeHtml(item.note)}
+                                   </div>`
+                                : ""
+                        }
+
+                    </div>
+
+
+                    <div class="cart-item-actions">
+
+                        <div class="quantity-control">
+
+                            <button
+                                onclick="changeCartQuantity('${item.cart_id}', -1)"
+                            >
+                                −
+                            </button>
+
+                            <strong>
+                                ${item.quantity}
+                            </strong>
+
+                            <button
+                                onclick="changeCartQuantity('${item.cart_id}', 1)"
+                            >
+                                +
+                            </button>
+
+                        </div>
+
+
+                        <button
+                            class="remove-cart-button"
+                            onclick="removeCartItem('${item.cart_id}')"
+                        >
+                            Remove
+                        </button>
+
+                    </div>
+
+                </div>
+            `;
+
+        }).join("");
+
+
+    const total =
+        calculateCartTotal();
+
+    if (totalElement) {
+        totalElement.textContent =
+            `₹${formatMoney(total)}`;
+    }
+}
+
+
+function changeCartQuantity(
+    cartId,
+    change
+) {
+
+    const item =
+        cart.find(
+            cartItem =>
+                cartItem.cart_id === cartId
+        );
+
+    if (!item) {
+        return;
+    }
+
+    item.quantity += Number(change);
+
+    if (item.quantity <= 0) {
+
+        removeCartItem(cartId);
+
+        return;
+    }
+
+    if (item.quantity > 99) {
+        item.quantity = 99;
+    }
+
+    renderCart();
+    updateCartCount();
+}
+
+
+function removeCartItem(cartId) {
+
+    cart =
+        cart.filter(
+            item =>
+                item.cart_id !== cartId
+        );
+
+    renderCart();
+
+    updateCartCount();
+}
+
+
+function updateCartCount() {
+
+    const count =
+        cart.reduce(
+            (total, item) =>
+                total + Number(item.quantity || 0),
+            0
+        );
+
+    const element =
+        document.getElementById("cartCount");
+
+    if (element) {
+        element.textContent =
+            String(count);
+    }
+}
+
+
+/* =========================================================
+   CART CALCULATIONS
+========================================================= */
 
 function calculateCartItemTotal(item) {
+
     const base =
         Number(item.base_price || 0) *
         Number(item.quantity || 1);
@@ -597,7 +1134,9 @@ function calculateCartItemTotal(item) {
     let addonTotal = 0;
 
     if (Array.isArray(item.addons)) {
+
         item.addons.forEach(addon => {
+
             addonTotal +=
                 Number(addon.price || 0) *
                 Number(addon.quantity || 0);
@@ -609,410 +1148,498 @@ function calculateCartItemTotal(item) {
 
 
 function calculateCartTotal() {
+
     return cart.reduce(
-        (sum, item) =>
-            sum + calculateCartItemTotal(item),
+        (total, item) =>
+            total +
+            calculateCartItemTotal(item),
         0
     );
 }
 
 
-function renderCart() {
-    const container =
-        document.getElementById("cartItems");
-
-    const countElement =
-        document.getElementById("cartCount");
-
-    const totalElement =
-        document.getElementById("cartTotal");
-
-    if (!container) return;
-
-    container.innerHTML = "";
-
-    let totalQuantity = 0;
-
-    cart.forEach((item, index) => {
-        totalQuantity += Number(item.quantity || 0);
-
-        const card = document.createElement("div");
-
-        card.className = "cart-item";
-
-        const addonsText =
-            Array.isArray(item.addons) &&
-            item.addons.length
-                ? item.addons
-                    .map(
-                        addon =>
-                            `${escapeHtml(addon.name)} × ${addon.quantity}`
-                    )
-                    .join(", ")
-                : "";
-
-        card.innerHTML = `
-            <div>
-                <strong>
-                    ${escapeHtml(item.name)}
-                </strong>
-
-                <div class="cart-item-meta">
-                    ${item.quantity} × ₹${Number(
-                        item.base_price
-                    ).toFixed(0)}
-                </div>
-
-                ${
-                    addonsText
-                        ? `<div class="cart-item-addons">
-                            ${addonsText}
-                           </div>`
-                        : ""
-                }
-
-                ${
-                    item.note
-                        ? `<div class="cart-item-note">
-                            ${escapeHtml(item.note)}
-                           </div>`
-                        : ""
-                }
-            </div>
-
-            <div class="cart-item-right">
-                <strong>
-                    ₹${calculateCartItemTotal(item).toFixed(0)}
-                </strong>
-
-                <div class="cart-item-buttons">
-                    <button
-                        type="button"
-                        onclick="openCustomization(
-                            '${item.menu_item_id}',
-                            ${index}
-                        )"
-                    >
-                        Edit
-                    </button>
-
-                    <button
-                        type="button"
-                        onclick="removeCartItem(${index})"
-                    >
-                        Remove
-                    </button>
-                </div>
-            </div>
-        `;
-
-        container.appendChild(card);
-    });
-
-    if (!cart.length) {
-        container.innerHTML = `
-            <div class="empty-state">
-                Your cart is empty.
-            </div>
-        `;
-    }
-
-    if (countElement) {
-        countElement.textContent = totalQuantity;
-    }
-
-    if (totalElement) {
-        totalElement.textContent =
-            `₹${calculateCartTotal().toFixed(0)}`;
-    }
-}
-
-
-function removeCartItem(index) {
-    cart.splice(index, 1);
-    renderCart();
-}
-
-
-function openCart() {
-    const modal =
-        document.getElementById("cartModal");
-
-    if (modal) {
-        modal.style.display = "flex";
-    }
-
-    renderCart();
-}
-
-
-function closeCart() {
-    const modal =
-        document.getElementById("cartModal");
-
-    if (modal) {
-        modal.style.display = "none";
-    }
-}
-
-
-// =====================================================
-// PLACE ORDER
-// =====================================================
+/* =========================================================
+   PLACE ORDER
+========================================================= */
 
 async function placeOrder() {
+
     if (!currentUser) {
+
         alert("Please login first.");
+
         return;
     }
+
 
     if (!cart.length) {
-        alert("Please add at least one item.");
+
+        alert("Your cart is empty.");
+
         return;
     }
+
 
     const customerName =
-        document.getElementById("customerName")
-            ?.value.trim();
+        document
+            .getElementById("customerName")
+            ?.value
+            .trim();
+
 
     const orderType =
-        document.getElementById("orderType")
+        document
+            .getElementById("orderType")
             ?.value || "Dine";
 
+
     const paymentMethod =
-        document.getElementById("paymentMethod")
+        document
+            .getElementById("paymentMethod")
             ?.value || "Cash";
 
+
     const note =
-        document.getElementById("orderNote")
-            ?.value.trim() || "";
+        document
+            .getElementById("orderNote")
+            ?.value
+            .trim() || "";
+
 
     if (!customerName) {
-        alert("Please enter customer name.");
-        return;
-    }
 
-    // Get next daily token safely from Supabase
-    const { data: token, error: tokenError } =
-        await supabaseClient.rpc(
-            "get_next_order_token"
+        alert(
+            "Please enter customer name."
         );
 
-    if (tokenError) {
-        console.error(tokenError);
-        alert("Could not generate order token.");
         return;
     }
 
-    const total = calculateCartTotal();
 
-    const orderData = {
-        token,
-        customer_name: customerName,
-        items: cart,
-        note,
-        payment_method: paymentMethod,
-        total,
-        status: "New",
-        created_by: currentUser.id,
-        order_type: orderType
-    };
+    const button =
+        document.querySelector(
+            "#cartModal .primary-button"
+        );
 
-    const { error } =
-        await supabaseClient
+
+    if (button) {
+
+        button.disabled = true;
+        button.textContent =
+            "Placing Order...";
+    }
+
+
+    try {
+
+        /* ---------------------------------------------
+           GET DAILY TOKEN
+        --------------------------------------------- */
+
+        const {
+            data: token,
+            error: tokenError
+        } = await supabaseClient
+            .rpc("get_next_order_token");
+
+
+        if (tokenError) {
+            throw tokenError;
+        }
+
+
+        /* ---------------------------------------------
+           INSERT ORDER
+        --------------------------------------------- */
+
+        const {
+            error: orderError
+        } = await supabaseClient
             .from("orders")
-            .insert(orderData);
+            .insert({
 
-    if (error) {
-        console.error("Order error:", error);
-        alert("Could not place order.");
-        return;
+                token:
+                    Number(token),
+
+                customer_name:
+                    customerName,
+
+                items:
+                    cart,
+
+                note:
+                    note,
+
+                payment_method:
+                    paymentMethod,
+
+                total:
+                    calculateCartTotal(),
+
+                status:
+                    "New",
+
+                created_by:
+                    currentUser.id,
+
+                order_type:
+                    orderType,
+
+                order_date:
+                    getLocalDate()
+            });
+
+
+        if (orderError) {
+            throw orderError;
+        }
+
+
+        /* ---------------------------------------------
+           RESET
+        --------------------------------------------- */
+
+        cart = [];
+
+        updateCartCount();
+
+        document
+            .getElementById("customerName")
+            .value = "";
+
+        document
+            .getElementById("orderNote")
+            .value = "";
+
+        document
+            .getElementById("orderType")
+            .value = "Dine";
+
+        document
+            .getElementById("paymentMethod")
+            .value = "Cash";
+
+
+        closeCart();
+
+
+        await loadOrders();
+
+        renderActiveOrders();
+
+        renderTodayOrders();
+
+        updateTodaySummary();
+
+
+        showToast(
+            `Order #${token} placed successfully.`
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Place order error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Unable to place order."
+        );
+
+
+    } finally {
+
+        if (button) {
+
+            button.disabled = false;
+            button.textContent =
+                "Place Order";
+        }
     }
-
-    alert(`Order #${token} placed successfully.`);
-
-    cart = [];
-
-    renderCart();
-
-    const customerInput =
-        document.getElementById("customerName");
-
-    const noteInput =
-        document.getElementById("orderNote");
-
-    if (customerInput) customerInput.value = "";
-    if (noteInput) noteInput.value = "";
-
-    closeCart();
-
-    await renderActiveOrders();
-    await renderTodayOrders();
-    updateTodaySummary();
 }
 
 
-// =====================================================
-// ORDERS
-// =====================================================
+/* =========================================================
+   LOAD ORDERS
+========================================================= */
 
-async function getOrders() {
-    const { data, error } =
-        await supabaseClient
+async function loadOrders() {
+
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient
             .from("orders")
             .select("*")
             .order("created_at", {
                 ascending: false
             });
 
-    if (error) {
-        console.error("Orders error:", error);
-        return [];
-    }
 
-    return data || [];
+        if (error) {
+            throw error;
+        }
+
+
+        allOrders = data || [];
+
+
+    } catch (error) {
+
+        console.error(
+            "Orders loading error:",
+            error
+        );
+
+        allOrders = [];
+    }
 }
 
 
-async function renderActiveOrders() {
+/* =========================================================
+   ACTIVE ORDERS
+========================================================= */
+
+function renderActiveOrders() {
+
     const container =
         document.getElementById(
             "activeOrdersContainer"
         );
 
-    if (!container) return;
+    if (!container) {
+        return;
+    }
 
-    const orders = await getOrders();
 
     const activeOrders =
-        orders.filter(order =>
-            order.status === "New" ||
-            order.status === "Preparing"
+        allOrders.filter(
+            order =>
+                order.status === "New" ||
+                order.status === "Preparing"
         );
 
-    container.innerHTML = "";
 
     if (!activeOrders.length) {
+
         container.innerHTML = `
             <div class="empty-state">
                 No active orders.
             </div>
         `;
+
         return;
     }
 
-    activeOrders.forEach(order => {
-        container.appendChild(
-            createOrderCard(order, true)
-        );
-    });
+
+    container.innerHTML =
+        activeOrders
+            .map(order =>
+                renderOrderCard(
+                    order,
+                    true
+                )
+            )
+            .join("");
 }
 
 
-async function renderTodayOrders() {
+/* =========================================================
+   TODAY'S ORDERS
+========================================================= */
+
+function renderTodayOrders() {
+
     const container =
         document.getElementById(
             "todayOrdersContainer"
         );
 
-    if (!container) return;
+    if (!container) {
+        return;
+    }
 
-    const orders = await getOrders();
 
-    const today = new Date()
-        .toISOString()
-        .split("T")[0];
+    const today =
+        getLocalDate();
+
 
     const todayOrders =
-        orders.filter(order =>
-            order.order_date === today
+        allOrders.filter(
+            order =>
+                order.order_date === today
         );
 
-    container.innerHTML = "";
 
     if (!todayOrders.length) {
+
         container.innerHTML = `
             <div class="empty-state">
                 No orders today.
             </div>
         `;
+
         return;
     }
 
-    todayOrders.forEach(order => {
-        container.appendChild(
-            createOrderCard(order, false)
-        );
-    });
+
+    container.innerHTML =
+        todayOrders
+            .map(order =>
+                renderOrderCard(
+                    order,
+                    false
+                )
+            )
+            .join("");
 }
 
 
-// =====================================================
-// ORDER CARD
-// =====================================================
+/* =========================================================
+   ORDER CARD
+========================================================= */
 
-function createOrderCard(order, activeView) {
-    const card =
-        document.createElement("div");
-
-    card.className = "order-card";
+function renderOrderCard(
+    order,
+    showActions
+) {
 
     const items =
         Array.isArray(order.items)
             ? order.items
             : [];
 
-    const itemsSummary =
+
+    const itemsHtml =
         items.map(item => {
-            const addons =
-                Array.isArray(item.addons) &&
-                item.addons.length
-                    ? ` (${item.addons
+
+            const itemTotal =
+                calculateCartItemTotal(item);
+
+
+            const addonsHtml =
+                Array.isArray(item.addons)
+                    ? item.addons
+                        .filter(
+                            addon =>
+                                Number(
+                                    addon.quantity || 0
+                                ) > 0
+                        )
                         .map(
                             addon =>
-                                `${addon.name} × ${addon.quantity}`
+                                `${escapeHtml(
+                                    addon.name
+                                )} × ${addon.quantity}`
                         )
-                        .join(", ")})`
+                        .join(", ")
                     : "";
 
+
             return `
-                <div>
-                    ${item.quantity} ×
-                    ${escapeHtml(item.name)}
-                    ${addons}
+                <div class="order-line">
+
+                    <div class="order-line-main">
+
+                        <span class="order-line-name">
+                            ${Number(item.quantity || 1)}
+                            ×
+                            ${escapeHtml(item.name)}
+                        </span>
+
+                        <span class="order-line-price">
+                            ₹${formatMoney(itemTotal)}
+                        </span>
+
+                    </div>
+
+
+                    ${
+                        addonsHtml
+                            ? `
+                                <div class="order-line-details">
+                                    Add-ons:
+                                    ${addonsHtml}
+                                </div>
+                              `
+                            : ""
+                    }
+
+
+                    ${
+                        item.note
+                            ? `
+                                <div class="order-line-details">
+                                    Note:
+                                    ${escapeHtml(item.note)}
+                                </div>
+                              `
+                            : ""
+                    }
+
                 </div>
             `;
+
         }).join("");
 
+
     const statusClass =
-        String(order.status || "")
-            .toLowerCase();
+        getStatusClass(order.status);
+
+
+    const orderTime =
+        formatDateTime(order.created_at);
+
 
     let actions = "";
 
-    if (activeView) {
-        if (order.status === "New") {
+
+    if (showActions) {
+
+        if (
+            order.status === "New"
+        ) {
+
             actions += `
                 <button
-                    class="order-action preparing"
-                    onclick="setPreparing('${order.id}')"
+                    class="order-action-button prepare-button"
+                    onclick="changeOrderStatus('${order.id}', 'Preparing')"
                 >
-                    Preparing
+                    Start Preparing
                 </button>
             `;
         }
 
-        if (isAdmin()) {
+
+        if (
+            order.status === "Preparing" &&
+            isAdmin()
+        ) {
+
             actions += `
                 <button
-                    class="order-action complete"
-                    onclick="completeOrder('${order.id}')"
+                    class="order-action-button complete-button"
+                    onclick="changeOrderStatus('${order.id}', 'Completed')"
                 >
                     Complete
                 </button>
+            `;
+        }
 
+
+        if (
+            isAdmin() &&
+            order.status !== "Cancelled"
+        ) {
+
+            actions += `
                 <button
-                    class="order-action cancel"
+                    class="order-action-button cancel-button"
                     onclick="cancelOrder('${order.id}')"
                 >
                     Cancel
@@ -1021,621 +1648,984 @@ function createOrderCard(order, activeView) {
         }
     }
 
-    card.innerHTML = `
-        <div class="order-card-header">
 
-            <div class="order-token">
-                #${order.token}
-            </div>
+    return `
+        <article class="order-card">
 
-            <div class="order-status ${statusClass}">
-                ${escapeHtml(order.status)}
-            </div>
+            <div class="order-card-header">
 
-        </div>
+                <div>
 
-        <div class="order-customer">
-            ${escapeHtml(order.customer_name)}
-        </div>
+                    <div class="order-token">
+                        #${order.token}
+                    </div>
 
-        <div class="order-meta">
-            ${escapeHtml(order.order_type || "Dine")}
-            •
-            ${escapeHtml(order.payment_method || "Cash")}
-        </div>
+                    <div class="order-customer">
+                        ${escapeHtml(
+                            order.customer_name
+                        )}
+                    </div>
 
-        <div class="order-items-summary">
-            ${itemsSummary}
-        </div>
+                    <div class="order-time">
+                        ${orderTime}
+                        •
+                        ${escapeHtml(
+                            order.order_type || "Dine"
+                        )}
+                        •
+                        ${escapeHtml(
+                            order.payment_method || ""
+                        )}
+                    </div>
 
-        ${
-            order.note
-                ? `
-                <div class="order-note">
-                    <strong>Note:</strong>
-                    ${escapeHtml(order.note)}
                 </div>
-                `
-                : ""
-        }
 
-        <div class="order-total">
-            Total: ₹${Number(order.total || 0).toFixed(0)}
-        </div>
 
-        ${
-            actions
-                ? `
+                <span
+                    class="status-badge ${statusClass}"
+                >
+                    ${escapeHtml(
+                        order.status
+                    )}
+                </span>
+
+            </div>
+
+
+            <div class="order-items">
+                ${itemsHtml}
+            </div>
+
+
+            ${
+                order.note
+                    ? `
+                        <div class="order-note">
+                            <strong>Order Note:</strong>
+                            ${escapeHtml(order.note)}
+                        </div>
+                      `
+                    : ""
+            }
+
+
+            <div class="order-footer">
+
+                <div class="order-total">
+                    ₹${formatMoney(order.total)}
+                </div>
+
+
                 <div class="order-actions">
+
+                    <button
+                        class="order-action-button details-button"
+                        onclick="openOrderDetails('${order.id}')"
+                    >
+                        Details
+                    </button>
+
                     ${actions}
+
                 </div>
-                `
-                : ""
-        }
+
+            </div>
+
+        </article>
     `;
-
-    return card;
 }
 
 
-// =====================================================
-// ORDER STATUS
-// =====================================================
+/* =========================================================
+   CHANGE ORDER STATUS
+========================================================= */
 
-async function setPreparing(orderId) {
-    const { error } =
-        await supabaseClient
+async function changeOrderStatus(
+    orderId,
+    newStatus
+) {
+
+    const order =
+        allOrders.find(
+            item =>
+                String(item.id) ===
+                String(orderId)
+        );
+
+
+    if (!order) {
+        return;
+    }
+
+
+    if (
+        newStatus === "Completed" &&
+        !isAdmin()
+    ) {
+
+        alert(
+            "Only admin can complete orders."
+        );
+
+        return;
+    }
+
+
+    try {
+
+        const updateData = {
+            status: newStatus
+        };
+
+
+        if (
+            newStatus === "Completed"
+        ) {
+
+            updateData.completed_by =
+                currentUser.id;
+
+            updateData.completed_at =
+                new Date().toISOString();
+        }
+
+
+        const {
+            error
+        } = await supabaseClient
             .from("orders")
-            .update({
-                status: "Preparing"
-            })
+            .update(updateData)
             .eq("id", orderId);
 
-    if (error) {
-        console.error(error);
-        alert("Could not update order.");
-        return;
-    }
 
-    await renderActiveOrders();
-    await renderTodayOrders();
-    updateTodaySummary();
+        if (error) {
+            throw error;
+        }
+
+
+        await loadOrders();
+
+        renderActiveOrders();
+
+        renderTodayOrders();
+
+        updateTodaySummary();
+
+
+    } catch (error) {
+
+        console.error(
+            "Status update error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Unable to update order."
+        );
+    }
 }
 
 
-async function completeOrder(orderId) {
-    if (!isAdmin()) {
-        alert("Only admin can complete orders.");
-        return;
-    }
-
-    const { error } =
-        await supabaseClient
-            .from("orders")
-            .update({
-                status: "Completed",
-                completed_by: currentUser.id,
-                completed_at: new Date().toISOString()
-            })
-            .eq("id", orderId);
-
-    if (error) {
-        console.error(error);
-        alert("Could not complete order.");
-        return;
-    }
-
-    await renderActiveOrders();
-    await renderTodayOrders();
-    updateTodaySummary();
-}
-
+/* =========================================================
+   CANCEL ORDER
+========================================================= */
 
 async function cancelOrder(orderId) {
+
     if (!isAdmin()) {
-        alert("Only admin can cancel orders.");
+
+        alert(
+            "Only admin can cancel orders."
+        );
+
         return;
     }
+
 
     const confirmed =
         confirm(
             "Are you sure you want to cancel this order?"
         );
 
-    if (!confirmed) return;
 
-    const { error } =
-        await supabaseClient
-            .from("orders")
-            .update({
-                status: "Cancelled",
-                completed_by: currentUser.id,
-                completed_at: new Date().toISOString()
-            })
-            .eq("id", orderId);
-
-    if (error) {
-        console.error(error);
-        alert("Could not cancel order.");
+    if (!confirmed) {
         return;
     }
 
-    await renderActiveOrders();
-    await renderTodayOrders();
-    updateTodaySummary();
+
+    try {
+
+        const {
+            error
+        } = await supabaseClient
+            .from("orders")
+            .update({
+                status: "Cancelled"
+            })
+            .eq("id", orderId);
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        await loadOrders();
+
+        renderActiveOrders();
+
+        renderTodayOrders();
+
+        updateTodaySummary();
+
+
+    } catch (error) {
+
+        console.error(
+            "Cancel order error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Unable to cancel order."
+        );
+    }
 }
 
 
-// =====================================================
-// ORDER DETAILS
-// =====================================================
+/* =========================================================
+   ORDER DETAILS
+========================================================= */
 
-async function openOrderDetails(orderId) {
-    const orders = await getOrders();
+function openOrderDetails(orderId) {
 
     const order =
-        orders.find(x => x.id === orderId);
+        allOrders.find(
+            item =>
+                String(item.id) ===
+                String(orderId)
+        );
 
-    if (!order) return;
+
+    if (!order) {
+        return;
+    }
+
 
     const container =
         document.getElementById(
             "orderDetailsContent"
         );
 
-    if (!container) return;
+
+    if (!container) {
+        return;
+    }
+
 
     const items =
         Array.isArray(order.items)
             ? order.items
             : [];
 
+
+    const itemsHtml =
+        items.map(item => {
+
+            const itemTotal =
+                calculateCartItemTotal(item);
+
+
+            const addons =
+                Array.isArray(item.addons)
+                    ? item.addons
+                        .map(
+                            addon =>
+                                `${escapeHtml(
+                                    addon.name
+                                )} × ${addon.quantity}`
+                        )
+                        .join(", ")
+                    : "";
+
+
+            return `
+                <div class="order-line">
+
+                    <div class="order-line-main">
+
+                        <span>
+                            ${item.quantity} ×
+                            ${escapeHtml(item.name)}
+                        </span>
+
+                        <strong>
+                            ₹${formatMoney(itemTotal)}
+                        </strong>
+
+                    </div>
+
+
+                    ${
+                        addons
+                            ? `
+                                <div class="order-line-details">
+                                    ${addons}
+                                </div>
+                              `
+                            : ""
+                    }
+
+                </div>
+            `;
+
+        }).join("");
+
+
     container.innerHTML = `
-        <h2>Order #${order.token}</h2>
 
-        <p>
-            <strong>Customer:</strong>
-            ${escapeHtml(order.customer_name)}
-        </p>
+        <div class="order-card-header">
 
-        <p>
-            <strong>Type:</strong>
-            ${escapeHtml(order.order_type || "Dine")}
-        </p>
+            <div>
 
-        <hr>
+                <div class="order-token">
+                    #${order.token}
+                </div>
 
-        ${items.map(item => `
-            <div class="detail-item">
-                <strong>
-                    ${item.quantity} ×
-                    ${escapeHtml(item.name)}
-                </strong>
+                <div class="order-customer">
+                    ${escapeHtml(
+                        order.customer_name
+                    )}
+                </div>
 
-                ${
-                    item.addons?.length
-                        ? `
-                        <div>
-                            ${item.addons.map(addon => `
-                                ${escapeHtml(addon.name)}
-                                × ${addon.quantity}
-                            `).join("<br>")}
-                        </div>
-                        `
-                        : ""
-                }
-
-                ${
-                    item.note
-                        ? `
-                        <div>
-                            Note:
-                            ${escapeHtml(item.note)}
-                        </div>
-                        `
-                        : ""
-                }
             </div>
-        `).join("")}
 
-        <hr>
+            <span
+                class="status-badge ${getStatusClass(
+                    order.status
+                )}"
+            >
+                ${escapeHtml(order.status)}
+            </span>
 
-        <strong>
-            Total: ₹${Number(order.total).toFixed(0)}
-        </strong>
+        </div>
+
+
+        <div class="order-line-details">
+            ${formatDateTime(order.created_at)}
+        </div>
+
+
+        <div style="margin-top:15px;">
+            ${itemsHtml}
+        </div>
+
+
+        <div class="order-note">
+
+            <strong>Order Type:</strong>
+            ${escapeHtml(
+                order.order_type || "Dine"
+            )}
+
+            <br>
+
+            <strong>Payment:</strong>
+            ${escapeHtml(
+                order.payment_method || ""
+            )}
+
+            ${
+                order.note
+                    ? `
+                        <br>
+                        <strong>Note:</strong>
+                        ${escapeHtml(order.note)}
+                      `
+                    : ""
+            }
+
+        </div>
+
+
+        <div
+            class="cart-total-row"
+            style="margin-top:15px;"
+        >
+
+            <span>Total</span>
+
+            <strong>
+                ₹${formatMoney(order.total)}
+            </strong>
+
+        </div>
     `;
 
-    const modal =
-        document.getElementById(
-            "orderDetailsModal"
-        );
 
-    if (modal) modal.style.display = "flex";
+    document
+        .getElementById("orderDetailsModal")
+        ?.classList.remove("hidden");
 }
 
 
 function closeOrderDetails() {
-    const modal =
-        document.getElementById(
-            "orderDetailsModal"
-        );
 
-    if (modal) {
-        modal.style.display = "none";
-    }
+    document
+        .getElementById(
+            "orderDetailsModal"
+        )
+        ?.classList.add("hidden");
 }
 
 
-// =====================================================
-// PAGES
-// =====================================================
+/* =========================================================
+   PAGES
+========================================================= */
 
 function showPage(pageId) {
-    document
-        .querySelectorAll(".page")
-        .forEach(page => {
-            page.style.display = "none";
-        });
 
-    const page =
+    const pages =
+        document.querySelectorAll(".page");
+
+    pages.forEach(page => {
+
+        page.classList.remove(
+            "active-page"
+        );
+    });
+
+
+    const target =
         document.getElementById(pageId);
 
-    if (page) {
-        page.style.display = "block";
+
+    if (target) {
+
+        target.classList.add(
+            "active-page"
+        );
     }
+
+
+    const navMap = {
+
+        newOrderPage:
+            "newOrderNav",
+
+        activePage:
+            "activeNav",
+
+        todayPage:
+            "todayNav",
+
+        menuSettingsPage:
+            "menuSettingsButton"
+    };
+
 
     document
         .querySelectorAll(".nav-button")
         .forEach(button => {
-            button.classList.remove("active-page");
+
+            button.classList.remove(
+                "active"
+            );
         });
 
-    if (pageId === "newOrderPage") {
-        document
-            .getElementById("newOrderNav")
-            ?.classList.add("active-page");
+
+    const navButton =
+        document.getElementById(
+            navMap[pageId]
+        );
+
+
+    if (navButton) {
+        navButton.classList.add(
+            "active"
+        );
     }
 
-    if (pageId === "activePage") {
-        document
-            .getElementById("activeNav")
-            ?.classList.add("active-page");
+
+    if (
+        pageId ===
+        "menuSettingsPage"
+    ) {
+
+        renderMenuSettings();
     }
 
-    if (pageId === "todayPage") {
-        document
-            .getElementById("todayNav")
-            ?.classList.add("active-page");
+
+    if (
+        pageId ===
+        "activePage"
+    ) {
+
+        renderActiveOrders();
     }
 
-    if (pageId === "menuSettingsPage") {
-        document
-            .getElementById("menuSettingsButton")
-            ?.classList.add("active-page");
 
-        loadMenuSettings();
+    if (
+        pageId ===
+        "todayPage"
+    ) {
+
+        renderTodayOrders();
+
+        updateTodaySummary();
     }
 }
 
 
-// =====================================================
-// TODAY SUMMARY
-// =====================================================
+/* =========================================================
+   TODAY SUMMARY
+========================================================= */
 
-async function updateTodaySummary() {
-    const orders = await getOrders();
+function updateTodaySummary() {
 
     const today =
-        new Date()
-            .toISOString()
-            .split("T")[0];
+        getLocalDate();
+
 
     const todayOrders =
-        orders.filter(
-            order => order.order_date === today
+        allOrders.filter(
+            order =>
+                order.order_date === today
         );
 
-    const newCount =
+
+    const totalOrders =
+        todayOrders.length;
+
+
+    const newOrders =
         todayOrders.filter(
-            x => x.status === "New"
+            order =>
+                order.status === "New"
         ).length;
 
-    const preparingCount =
+
+    const preparingOrders =
         todayOrders.filter(
-            x => x.status === "Preparing"
+            order =>
+                order.status === "Preparing"
         ).length;
 
-    const completedCount =
+
+    const completedOrders =
         todayOrders.filter(
-            x => x.status === "Completed"
+            order =>
+                order.status === "Completed"
         ).length;
 
-    const cancelledCount =
+
+    const cancelledOrders =
         todayOrders.filter(
-            x => x.status === "Cancelled"
+            order =>
+                order.status === "Cancelled"
         ).length;
+
 
     const sales =
         todayOrders
             .filter(
-                x => x.status !== "Cancelled"
+                order =>
+                    order.status !== "Cancelled"
             )
             .reduce(
-                (sum, x) =>
-                    sum + Number(x.total || 0),
+                (sum, order) =>
+                    sum +
+                    Number(order.total || 0),
                 0
             );
 
-    setText("summaryOrders", todayOrders.length);
-    setText("summaryNew", newCount);
-    setText("summaryPreparing", preparingCount);
-    setText("summaryCompleted", completedCount);
-    setText("summaryCancelled", cancelledCount);
+
     setText(
-        "summarySales",
-        `₹${sales.toFixed(0)}`
+        "summaryDate",
+        formatReadableDate(today)
     );
 
-    const dateElement =
-        document.getElementById("summaryDate");
+    setText(
+        "summaryOrders",
+        totalOrders
+    );
 
-    if (dateElement) {
-        dateElement.textContent =
-            new Date().toLocaleDateString(
-                "en-IN",
-                {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric"
-                }
-            );
-    }
+    setText(
+        "summaryNew",
+        newOrders
+    );
+
+    setText(
+        "summaryPreparing",
+        preparingOrders
+    );
+
+    setText(
+        "summaryCompleted",
+        completedOrders
+    );
+
+    setText(
+        "summaryCancelled",
+        cancelledOrders
+    );
+
+    setText(
+        "summarySales",
+        `₹${formatMoney(sales)}`
+    );
 }
 
 
-// =====================================================
-// ADMIN MENU MANAGEMENT
-// =====================================================
+/* =========================================================
+   MENU SETTINGS
+========================================================= */
 
-async function loadMenuSettings() {
-    if (!isAdmin()) return;
+async function renderMenuSettings() {
 
     const container =
         document.getElementById(
             "menuSettingsContainer"
         );
 
-    if (!container) return;
 
-    const { data, error } =
-        await supabaseClient
+    if (!container) {
+        return;
+    }
+
+
+    if (!isAdmin()) {
+
+        container.innerHTML = `
+            <div class="empty-state">
+                Admin access required.
+            </div>
+        `;
+
+        return;
+    }
+
+
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient
             .from("menu_items")
             .select("*")
             .order("created_at", {
                 ascending: true
             });
 
-    if (error) {
-        console.error(error);
-        return;
-    }
 
-    const items = data || [];
+        if (error) {
+            throw error;
+        }
 
-    items.sort((a, b) => {
-        const indexA =
-            menuOrder.indexOf(a.name);
 
-        const indexB =
-            menuOrder.indexOf(b.name);
+        const items =
+            data || [];
 
-        return (
-            (indexA === -1 ? 999 : indexA) -
-            (indexB === -1 ? 999 : indexB)
-        );
-    });
 
-    container.innerHTML = "";
+        if (!items.length) {
 
-    items.forEach(item => {
-        const card =
-            document.createElement("div");
-
-        card.className =
-            "menu-setting-card";
-
-        const addons =
-            Array.isArray(item.addons)
-                ? item.addons
-                : [];
-
-        card.innerHTML = `
-            <div class="menu-setting-header">
-                <div>
-                    <strong>
-                        ${escapeHtml(item.name)}
-                    </strong>
-
-                    <small>
-                        ${escapeHtml(item.category)}
-                    </small>
+            container.innerHTML = `
+                <div class="empty-state">
+                    No menu items found.
                 </div>
+            `;
 
-                <div class="menu-setting-price">
-                    ₹${Number(item.price).toFixed(0)}
-                </div>
-            </div>
+            return;
+        }
 
-            ${
-                addons.length
-                    ? `
-                    <div class="menu-setting-addons">
-                        ${addons.map(addon => `
+
+        container.innerHTML =
+            items.map(item => {
+
+                const addons =
+                    Array.isArray(item.addons)
+                        ? item.addons
+                        : [];
+
+
+                const addonText =
+                    addons.length
+                        ? addons
+                            .map(
+                                addon =>
+                                    `${escapeHtml(
+                                        addon.name
+                                    )} ₹${formatMoney(
+                                        addon.price
+                                    )}`
+                            )
+                            .join(" • ")
+                        : "No add-ons";
+
+
+                return `
+
+                    <div class="menu-setting-card">
+
+                        <div class="menu-setting-header">
+
                             <div>
-                                ${escapeHtml(addon.name)}
-                                — ₹${Number(
-                                    addon.price || 0
-                                ).toFixed(0)}
+
+                                <div class="menu-setting-name">
+                                    ${escapeHtml(item.name)}
+                                </div>
+
+                                <div class="menu-setting-category">
+                                    ${escapeHtml(
+                                        item.category || ""
+                                    )}
+                                    •
+                                    ${
+                                        item.active
+                                            ? "Active"
+                                            : "Inactive"
+                                    }
+                                </div>
+
                             </div>
-                        `).join("")}
-                    </div>
-                    `
-                    : `
-                    <div class="menu-setting-addons">
-                        No add-ons
-                    </div>
-                    `
-            }
 
-            <div class="menu-setting-actions">
-                <button
-                    onclick="editMenuItem('${item.id}')"
-                >
-                    Edit
-                </button>
 
-                <button
-                    onclick="deleteMenuItem('${item.id}')"
-                >
-                    Delete
-                </button>
+                            <div class="menu-setting-price">
+                                ₹${formatMoney(item.price)}
+                            </div>
+
+                        </div>
+
+
+                        <div class="menu-setting-addons">
+
+                            <strong>
+                                Add-ons:
+                            </strong>
+
+                            ${addonText}
+
+                        </div>
+
+
+                        <div class="menu-setting-actions">
+
+                            <button
+                                class="secondary-button"
+                                onclick="openEditMenuItem('${item.id}')"
+                            >
+                                Edit
+                            </button>
+
+
+                            <button
+                                class="danger-button"
+                                onclick="deleteMenuItem('${item.id}')"
+                            >
+                                Delete
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                `;
+
+            }).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "Menu settings error:",
+            error
+        );
+
+        container.innerHTML = `
+            <div class="empty-state">
+                Unable to load menu settings.
             </div>
         `;
-
-        container.appendChild(card);
-    });
+    }
 }
 
 
-function openMenuEditor(itemId = null) {
-    if (!isAdmin()) return;
+/* =========================================================
+   ADD MENU ITEM
+========================================================= */
 
-    currentEditingMenuId = itemId;
+function openAddMenuItem() {
 
-    const modal =
-        document.getElementById(
-            "menuEditorModal"
+    if (!isAdmin()) {
+        return;
+    }
+
+    editingMenuItemId = null;
+
+    setText(
+        "menuEditorTitle",
+        "Add Menu Item"
+    );
+
+    document
+        .getElementById("editingMenuItemId")
+        .value = "";
+
+
+    document
+        .getElementById("menuItemName")
+        .value = "";
+
+
+    document
+        .getElementById("menuItemCategory")
+        .value = "";
+
+
+    document
+        .getElementById("menuItemPrice")
+        .value = "";
+
+
+    document
+        .getElementById("menuItemActive")
+        .checked = true;
+
+
+    document
+        .getElementById("addonFields")
+        .innerHTML = "";
+
+
+    document
+        .getElementById("menuEditorModal")
+        ?.classList.remove("hidden");
+}
+
+
+/* =========================================================
+   EDIT MENU ITEM
+========================================================= */
+
+async function openEditMenuItem(itemId) {
+
+    if (!isAdmin()) {
+        return;
+    }
+
+
+    try {
+
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .from("menu_items")
+            .select("*")
+            .eq("id", itemId)
+            .single();
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        editingMenuItemId =
+            itemId;
+
+
+        setText(
+            "menuEditorTitle",
+            "Edit Menu Item"
         );
 
-    const title =
-        document.getElementById(
-            "menuEditorTitle"
-        );
 
-    const nameInput =
-        document.getElementById(
-            "menuItemName"
-        );
+        document
+            .getElementById("editingMenuItemId")
+            .value = item.id;
 
-    const categoryInput =
-        document.getElementById(
-            "menuItemCategory"
-        );
 
-    const priceInput =
-        document.getElementById(
-            "menuItemPrice"
-        );
+        document
+            .getElementById("menuItemName")
+            .value = item.name || "";
 
-    const activeInput =
-        document.getElementById(
-            "menuItemActive"
-        );
 
-    if (itemId) {
-        const item =
-            menuItems.find(
-                x => x.id === itemId
-            );
+        document
+            .getElementById("menuItemCategory")
+            .value =
+                item.category || "";
 
-        if (!item) return;
 
-        if (title)
-            title.textContent =
-                "Edit Menu Item";
+        document
+            .getElementById("menuItemPrice")
+            .value =
+                item.price || 0;
 
-        if (nameInput)
-            nameInput.value =
-                item.name;
 
-        if (categoryInput)
-            categoryInput.value =
-                item.category;
+        document
+            .getElementById("menuItemActive")
+            .checked =
+                Boolean(item.active);
 
-        if (priceInput)
-            priceInput.value =
-                item.price;
-
-        if (activeInput)
-            activeInput.checked =
-                item.active !== false;
 
         renderAddonEditor(
             Array.isArray(item.addons)
                 ? item.addons
                 : []
         );
-    } else {
-        if (title)
-            title.textContent =
-                "Add Menu Item";
-
-        if (nameInput)
-            nameInput.value = "";
-
-        if (categoryInput)
-            categoryInput.value = "";
-
-        if (priceInput)
-            priceInput.value = "";
-
-        if (activeInput)
-            activeInput.checked = true;
-
-        renderAddonEditor([]);
-    }
-
-    if (modal) {
-        modal.style.display = "flex";
-    }
-}
 
 
-function closeMenuEditor() {
-    const modal =
-        document.getElementById(
-            "menuEditorModal"
+        document
+            .getElementById("menuEditorModal")
+            ?.classList.remove("hidden");
+
+
+    } catch (error) {
+
+        console.error(
+            "Edit menu error:",
+            error
         );
 
-    if (modal) {
-        modal.style.display = "none";
+        alert(
+            error.message ||
+            "Unable to load menu item."
+        );
     }
-
-    currentEditingMenuId = null;
 }
 
 
+/* =========================================================
+   ADDON EDITOR
+========================================================= */
+
 function renderAddonEditor(addons) {
+
     const container =
         document.getElementById(
             "addonFields"
         );
 
-    if (!container) return;
+
+    if (!container) {
+        return;
+    }
+
 
     container.innerHTML = "";
 
+
     addons.forEach(addon => {
+
         addAddonField(
             addon.name,
             addon.price
         );
     });
-
-    if (!addons.length) {
-        addAddonField("", "");
-    }
 }
 
 
@@ -1643,20 +2633,28 @@ function addAddonField(
     name = "",
     price = ""
 ) {
+
     const container =
         document.getElementById(
             "addonFields"
         );
 
-    if (!container) return;
+
+    if (!container) {
+        return;
+    }
+
 
     const row =
         document.createElement("div");
 
+
     row.className =
-        "editor-field";
+        "addon-editor-row";
+
 
     row.innerHTML = `
+
         <input
             type="text"
             class="addon-name"
@@ -1664,222 +2662,346 @@ function addAddonField(
             value="${escapeAttribute(name)}"
         >
 
+
         <input
             type="number"
             class="addon-price"
-            placeholder="Price"
             min="0"
-            value="${price}"
+            step="1"
+            placeholder="Price"
+            value="${escapeAttribute(price)}"
         >
+
 
         <button
             type="button"
+            class="remove-addon-button"
             onclick="this.parentElement.remove()"
         >
-            Remove
+            ×
         </button>
+
     `;
+
 
     container.appendChild(row);
 }
 
 
+/* =========================================================
+   SAVE MENU ITEM
+========================================================= */
+
 async function saveMenuItem() {
-    if (!isAdmin()) return;
+
+    if (!isAdmin()) {
+        return;
+    }
+
 
     const name =
-        document.getElementById(
-            "menuItemName"
-        )?.value.trim();
+        document
+            .getElementById("menuItemName")
+            ?.value
+            .trim();
+
 
     const category =
-        document.getElementById(
-            "menuItemCategory"
-        )?.value.trim();
+        document
+            .getElementById("menuItemCategory")
+            ?.value
+            .trim();
+
 
     const price =
         Number(
-            document.getElementById(
-                "menuItemPrice"
-            )?.value || 0
+            document
+                .getElementById("menuItemPrice")
+                ?.value || 0
         );
+
 
     const active =
-        document.getElementById(
-            "menuItemActive"
-        )?.checked ?? true;
+        document
+            .getElementById("menuItemActive")
+            ?.checked ?? true;
 
-    if (!name || !category) {
+
+    if (!name) {
+
         alert(
-            "Please enter item name and category."
+            "Please enter item name."
         );
+
         return;
     }
+
+
+    if (!category) {
+
+        alert(
+            "Please enter category."
+        );
+
+        return;
+    }
+
+
+    if (price < 0) {
+
+        alert(
+            "Price cannot be negative."
+        );
+
+        return;
+    }
+
+
+    const addonRows =
+        document.querySelectorAll(
+            "#addonFields .addon-editor-row"
+        );
+
 
     const addons = [];
 
-    document
-        .querySelectorAll(
-            "#addonFields .editor-field"
-        )
-        .forEach(row => {
-            const addonName =
-                row.querySelector(
-                    ".addon-name"
-                )?.value.trim();
 
-            const addonPrice =
-                Number(
-                    row.querySelector(
-                        ".addon-price"
-                    )?.value || 0
-                );
+    addonRows.forEach(row => {
 
-            if (addonName) {
-                addons.push({
-                    name: addonName,
-                    price: addonPrice
-                });
-            }
-        });
+        const addonName =
+            row
+                .querySelector(".addon-name")
+                ?.value
+                .trim();
 
-    const payload = {
-        name,
-        category,
-        price,
-        addons,
-        active
-    };
 
-    let error;
+        const addonPrice =
+            Number(
+                row
+                    .querySelector(".addon-price")
+                    ?.value || 0
+            );
 
-    if (currentEditingMenuId) {
-        ({ error } =
-            await supabaseClient
+
+        if (
+            addonName &&
+            addonPrice >= 0
+        ) {
+
+            addons.push({
+
+                name:
+                    addonName,
+
+                price:
+                    addonPrice
+            });
+        }
+    });
+
+
+    const saveButton =
+        document.querySelector(
+            "#menuEditorModal .primary-button"
+        );
+
+
+    if (saveButton) {
+
+        saveButton.disabled = true;
+        saveButton.textContent =
+            "Saving...";
+    }
+
+
+    try {
+
+        const menuData = {
+
+            name,
+
+            category,
+
+            price,
+
+            addons,
+
+            active
+        };
+
+
+        if (editingMenuItemId) {
+
+            const {
+                error
+            } = await supabaseClient
                 .from("menu_items")
-                .update(payload)
+                .update(menuData)
                 .eq(
                     "id",
-                    currentEditingMenuId
-                ));
-    } else {
-        ({ error } =
-            await supabaseClient
+                    editingMenuItemId
+                );
+
+
+            if (error) {
+                throw error;
+            }
+
+        } else {
+
+            const {
+                error
+            } = await supabaseClient
                 .from("menu_items")
-                .insert(payload));
-    }
+                .insert(menuData);
 
-    if (error) {
-        console.error(error);
-        alert(
-            "Could not save menu item."
+
+            if (error) {
+                throw error;
+            }
+        }
+
+
+        closeMenuEditor();
+
+        await loadMenu();
+
+        await renderMenuSettings();
+
+        showToast(
+            "Menu item saved."
         );
-        return;
+
+
+    } catch (error) {
+
+        console.error(
+            "Save menu error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Unable to save menu item."
+        );
+
+
+    } finally {
+
+        if (saveButton) {
+
+            saveButton.disabled = false;
+            saveButton.textContent =
+                "Save Menu Item";
+        }
     }
-
-    closeMenuEditor();
-
-    await loadMenu();
-    await loadMenuSettings();
 }
 
 
-async function editMenuItem(itemId) {
-    if (!isAdmin()) return;
-
-    const { data, error } =
-        await supabaseClient
-            .from("menu_items")
-            .select("*")
-            .eq("id", itemId)
-            .single();
-
-    if (error) {
-        console.error(error);
-        return;
-    }
-
-    menuItems = menuItems.filter(
-        x => x.id !== itemId
-    );
-
-    menuItems.push(data);
-
-    openMenuEditor(itemId);
-}
-
+/* =========================================================
+   DELETE MENU ITEM
+========================================================= */
 
 async function deleteMenuItem(itemId) {
-    if (!isAdmin()) return;
+
+    if (!isAdmin()) {
+        return;
+    }
+
 
     const confirmed =
         confirm(
-            "Are you sure you want to delete this menu item?"
+            "Delete this menu item?"
         );
 
-    if (!confirmed) return;
 
-    const { error } =
-        await supabaseClient
+    if (!confirmed) {
+        return;
+    }
+
+
+    try {
+
+        const {
+            error
+        } = await supabaseClient
             .from("menu_items")
             .delete()
             .eq("id", itemId);
 
-    if (error) {
-        console.error(error);
-        alert(
-            "Could not delete menu item."
-        );
-        return;
-    }
 
-    await loadMenu();
-    await loadMenuSettings();
+        if (error) {
+            throw error;
+        }
+
+
+        await loadMenu();
+
+        await renderMenuSettings();
+
+
+        showToast(
+            "Menu item deleted."
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Delete menu error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Unable to delete menu item."
+        );
+    }
 }
 
 
-// =====================================================
-// ORDER SEARCH
-// =====================================================
+/* =========================================================
+   CLOSE MENU EDITOR
+========================================================= */
 
-function filterOrders() {
-    const search =
-        document.getElementById(
-            "orderSearch"
-        )?.value
-            .trim()
-            .toLowerCase();
+function closeMenuEditor() {
 
     document
-        .querySelectorAll(".order-card")
-        .forEach(card => {
-            const text =
-                card.textContent
-                    .toLowerCase();
+        .getElementById(
+            "menuEditorModal"
+        )
+        ?.classList.add("hidden");
 
-            card.style.display =
-                !search ||
-                text.includes(search)
-                    ? ""
-                    : "none";
-        });
+
+    editingMenuItemId = null;
 }
 
 
-// =====================================================
-// REALTIME
-// =====================================================
+/* =========================================================
+   REALTIME
+========================================================= */
 
 function setupRealtime() {
+
     if (realtimeChannel) {
-        supabaseClient.removeChannel(
-            realtimeChannel
-        );
+
+        supabaseClient
+            .removeChannel(
+                realtimeChannel
+            );
+
+        realtimeChannel = null;
     }
+
 
     realtimeChannel =
         supabaseClient
-            .channel("chai-mohalla-realtime")
+            .channel(
+                "chai-mohalla-live"
+            )
+
+
+            /* Orders */
 
             .on(
                 "postgres_changes",
@@ -1889,11 +3011,19 @@ function setupRealtime() {
                     table: "orders"
                 },
                 async () => {
-                    await renderActiveOrders();
-                    await renderTodayOrders();
+
+                    await loadOrders();
+
+                    renderActiveOrders();
+
+                    renderTodayOrders();
+
                     updateTodaySummary();
                 }
             )
+
+
+            /* Menu */
 
             .on(
                 "postgres_changes",
@@ -1903,67 +3033,326 @@ function setupRealtime() {
                     table: "menu_items"
                 },
                 async () => {
+
                     await loadMenu();
 
-                    if (isAdmin()) {
-                        await loadMenuSettings();
+                    if (
+                        document
+                            .getElementById(
+                                "menuSettingsPage"
+                            )
+                            ?.classList
+                            .contains(
+                                "active-page"
+                            )
+                    ) {
+
+                        await renderMenuSettings();
                     }
                 }
             )
 
-            .subscribe();
+
+            .subscribe(
+                status => {
+
+                    console.log(
+                        "Realtime status:",
+                        status
+                    );
+                }
+            );
 }
 
 
-// =====================================================
-// HELPERS
-// =====================================================
+/* =========================================================
+   AUTH STATE LISTENER
+========================================================= */
 
-function setText(id, value) {
-    const element =
-        document.getElementById(id);
+supabaseClient.auth.onAuthStateChange(
+    async (event, session) => {
 
-    if (element) {
-        element.textContent = value;
+        if (
+            event === "SIGNED_OUT"
+        ) {
+
+            currentUser = null;
+
+            showLogin();
+
+            return;
+        }
+
+
+        if (
+            event === "SIGNED_IN" &&
+            session
+        ) {
+
+            currentUser =
+                session.user;
+
+            await showApp();
+        }
+    }
+);
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function getLocalDate() {
+
+    const now =
+        new Date();
+
+
+    const year =
+        now.getFullYear();
+
+
+    const month =
+        String(
+            now.getMonth() + 1
+        ).padStart(2, "0");
+
+
+    const day =
+        String(
+            now.getDate()
+        ).padStart(2, "0");
+
+
+    return `${year}-${month}-${day}`;
+}
+
+
+function formatReadableDate(dateString) {
+
+    if (!dateString) {
+        return "";
+    }
+
+
+    const date =
+        new Date(
+            `${dateString}T00:00:00`
+        );
+
+
+    return date.toLocaleDateString(
+        "en-IN",
+        {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric"
+        }
+    );
+}
+
+
+function formatDateTime(
+    dateString
+) {
+
+    if (!dateString) {
+        return "";
+    }
+
+
+    const date =
+        new Date(dateString);
+
+
+    return date.toLocaleString(
+        "en-IN",
+        {
+            day: "numeric",
+            month: "short",
+            hour: "numeric",
+            minute: "2-digit"
+        }
+    );
+}
+
+
+function formatMoney(value) {
+
+    const number =
+        Number(value || 0);
+
+
+    return number.toLocaleString(
+        "en-IN",
+        {
+            maximumFractionDigits: 2
+        }
+    );
+}
+
+
+function getStatusClass(
+    status
+) {
+
+    switch (status) {
+
+        case "New":
+            return "status-new";
+
+        case "Preparing":
+            return "status-preparing";
+
+        case "Completed":
+            return "status-completed";
+
+        case "Cancelled":
+            return "status-cancelled";
+
+        default:
+            return "";
     }
 }
 
 
+function setText(
+    elementId,
+    value
+) {
+
+    const element =
+        document.getElementById(
+            elementId
+        );
+
+
+    if (element) {
+        element.textContent =
+            String(value);
+    }
+}
+
+
+/* =========================================================
+   SECURITY / HTML HELPERS
+========================================================= */
+
 function escapeHtml(value) {
+
     return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
 }
 
 
 function escapeAttribute(value) {
-    return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/"/g, "&quot;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+
+    return escapeHtml(value);
 }
 
 
-// =====================================================
-// AUTH STATE LISTENER
-// =====================================================
+/* =========================================================
+   TOAST
+========================================================= */
 
-supabaseClient.auth.onAuthStateChange(
-    async (event, session) => {
-        if (event === "SIGNED_IN" && session) {
-            currentUser = session.user;
-        }
+function showToast(message) {
 
-        if (event === "SIGNED_OUT") {
-            currentUser = null;
-            currentProfile = null;
-            cart = [];
+    let toast =
+        document.getElementById(
+            "appToast"
+        );
 
-            showLogin();
-        }
+
+    if (!toast) {
+
+        toast =
+            document.createElement("div");
+
+        toast.id =
+            "appToast";
+
+
+        toast.style.position =
+            "fixed";
+
+        toast.style.left =
+            "50%";
+
+        toast.style.bottom =
+            "85px";
+
+        toast.style.transform =
+            "translateX(-50%)";
+
+        toast.style.background =
+            "#3c2115";
+
+        toast.style.color =
+            "white";
+
+        toast.style.padding =
+            "11px 16px";
+
+        toast.style.borderRadius =
+            "10px";
+
+        toast.style.zIndex =
+            "1000";
+
+        toast.style.fontSize =
+            "14px";
+
+        toast.style.boxShadow =
+            "0 4px 15px rgba(0,0,0,.2)";
+
+
+        document.body.appendChild(
+            toast
+        );
     }
-);
+
+
+    toast.textContent =
+        message;
+
+
+    toast.style.display =
+        "block";
+
+
+    clearTimeout(
+        toast._timeout
+    );
+
+
+    toast._timeout =
+        setTimeout(
+            () => {
+
+                toast.style.display =
+                    "none";
+
+            },
+            2500
+        );
+}

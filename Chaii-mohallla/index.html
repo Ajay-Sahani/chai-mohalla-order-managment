@@ -5,561 +5,462 @@
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
     >
 
-    <title>Chai Mohalla</title>
+    <title>Chai Mohalla - Order Management</title>
 
     <link rel="stylesheet" href="style.css">
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
 
-    <!-- ==============================
-         LOGIN SCREEN
-         ============================== -->
+<!-- =========================================================
+     LOGIN
+========================================================= -->
 
-    <section id="loginScreen" class="login-screen">
+<section id="loginScreen" class="login-screen">
 
-        <div class="login-card">
+    <div class="login-card">
 
-            <div class="login-logo">
-                ☕
-            </div>
-
-            <h1>Chai Mohalla</h1>
-            <p class="login-subtitle">Order Management</p>
-
-            <div class="login-form">
-
-                <label for="loginEmail">
-                    Email
-                </label>
-
-                <input
-                    type="email"
-                    id="loginEmail"
-                    placeholder="Enter your email"
-                    autocomplete="email"
-                >
-
-                <label for="loginPassword">
-                    Password
-                </label>
-
-                <input
-                    type="password"
-                    id="loginPassword"
-                    placeholder="Enter your password"
-                    autocomplete="current-password"
-                >
-
-                <button
-                    type="button"
-                    class="primary-button login-button"
-                    onclick="loginUser()"
-                >
-                    Login
-                </button>
-
-                <p id="loginError" class="login-error"></p>
-
-            </div>
-
+        <div class="login-logo">
+            ☕
         </div>
 
-    </section>
+        <h1>Chai Mohalla</h1>
 
+        <p class="login-subtitle">
+            Order Management
+        </p>
 
-    <!-- ==============================
-         MAIN APP
-         ============================== -->
+        <div class="form-group">
+            <label for="loginEmail">Email</label>
 
-    <div id="appContent" class="app-content hidden">
-
-        <!-- HEADER -->
-
-        <header class="app-header">
-
-            <div class="header-left">
-
-                <div class="header-logo">
-                    ☕
-                </div>
-
-                <div>
-                    <h1>Chai Mohalla</h1>
-                    <span id="userRole">Staff</span>
-                </div>
-
-            </div>
-
-            <button
-                type="button"
-                class="logout-button"
-                onclick="logoutUser()"
+            <input
+                type="email"
+                id="loginEmail"
+                placeholder="Enter email"
+                autocomplete="email"
             >
-                Logout
-            </button>
+        </div>
 
-        </header>
+        <div class="form-group">
+            <label for="loginPassword">Password</label>
 
-
-        <!-- ==============================
-             PAGE CONTENT
-             ============================== -->
-
-        <main class="main-content">
-
-            <!-- ==============================
-                 NEW ORDER
-                 ============================== -->
-
-            <section
-                id="newOrderPage"
-                class="page active-page"
+            <input
+                type="password"
+                id="loginPassword"
+                placeholder="Enter password"
+                autocomplete="current-password"
             >
-
-                <div class="page-header">
-
-                    <div>
-                        <h2>New Order</h2>
-                        <p>Create a new customer order</p>
-                    </div>
-
-                    <div class="cart-button-wrapper">
-
-                        <button
-                            type="button"
-                            class="cart-button"
-                            onclick="openCart()"
-                        >
-                            🛒
-                            <span>Cart</span>
-                            <b id="cartCount">0</b>
-                        </button>
-
-                    </div>
-
-                </div>
-
-
-                <!-- MENU -->
-
-                <div
-                    id="menuContainer"
-                    class="menu-container"
-                ></div>
-
-            </section>
-
-
-            <!-- ==============================
-                 ACTIVE ORDERS
-                 ============================== -->
-
-            <section
-                id="activePage"
-                class="page"
-            >
-
-                <div class="page-header">
-
-                    <div>
-                        <h2>Active Orders</h2>
-                        <p>Orders currently being handled</p>
-                    </div>
-
-                </div>
-
-
-                <!-- SEARCH -->
-
-                <div class="order-search">
-
-                    <input
-                        type="text"
-                        id="orderSearch"
-                        placeholder="Search customer name or token..."
-                        oninput="filterOrders()"
-                    >
-
-                </div>
-
-
-                <!-- ACTIVE ORDERS -->
-
-                <div
-                    id="activeOrdersContainer"
-                    class="orders-container"
-                ></div>
-
-            </section>
-
-
-            <!-- ==============================
-                 TODAY
-                 ============================== -->
-
-            <section
-                id="todayPage"
-                class="page"
-            >
-
-                <div class="page-header">
-
-                    <div>
-                        <h2>Today's Orders</h2>
-                        <p>Complete order activity for today</p>
-                    </div>
-
-                </div>
-
-
-                <!-- ==============================
-                     TODAY'S SUMMARY
-                     ============================== -->
-
-                <div class="today-summary-section">
-
-                    <div class="today-summary-header">
-
-                        <div>
-
-                            <h2>Today's Summary</h2>
-
-                            <p id="summaryDate">
-                                Today's order overview
-                            </p>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="today-summary-grid">
-
-                        <div class="summary-card">
-
-                            <span>Total Orders</span>
-
-                            <strong id="summaryOrders">
-                                0
-                            </strong>
-
-                        </div>
-
-
-                        <div class="summary-card">
-
-                            <span>New</span>
-
-                            <strong id="summaryNew">
-                                0
-                            </strong>
-
-                        </div>
-
-
-                        <div class="summary-card">
-
-                            <span>Preparing</span>
-
-                            <strong id="summaryPreparing">
-                                0
-                            </strong>
-
-                        </div>
-
-
-                        <div class="summary-card">
-
-                            <span>Completed</span>
-
-                            <strong id="summaryCompleted">
-                                0
-                            </strong>
-
-                        </div>
-
-
-                        <div class="summary-card">
-
-                            <span>Cancelled</span>
-
-                            <strong id="summaryCancelled">
-                                0
-                            </strong>
-
-                        </div>
-
-
-                        <div class="summary-card sales-card">
-
-                            <span>Total Sales</span>
-
-                            <strong id="summarySales">
-                                ₹0
-                            </strong>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- TODAY'S ORDERS -->
-
-                <div
-                    id="todayOrdersContainer"
-                    class="orders-container"
-                ></div>
-
-            </section>
-
-
-            <!-- ==============================
-                 MENU SETTINGS
-                 ADMIN ONLY
-                 ============================== -->
-
-            <section
-                id="menuSettingsPage"
-                class="page"
-            >
-
-                <div class="page-header">
-
-                    <div>
-                        <h2>Menu Management</h2>
-                        <p>Manage items, prices and customizations</p>
-                    </div>
-
-                    <button
-                        type="button"
-                        class="primary-button"
-                        onclick="openAddMenuItem()"
-                    >
-                        + Add Item
-                    </button>
-
-                </div>
-
-
-                <div
-                    id="menuSettingsContainer"
-                    class="menu-settings-container"
-                ></div>
-
-            </section>
-
-        </main>
-
-
-        <!-- ==============================
-             BOTTOM NAVIGATION
-             ============================== -->
-
-        <nav class="bottom-nav">
-
-            <button
-                type="button"
-                class="nav-button active"
-                id="newOrderNav"
-                onclick="showPage('newOrderPage', this)"
-            >
-                <span class="nav-icon">＋</span>
-                <span>New Order</span>
-            </button>
-
-
-            <button
-                type="button"
-                class="nav-button"
-                id="activeNav"
-                onclick="showPage('activePage', this)"
-            >
-                <span class="nav-icon">📋</span>
-                <span>Active</span>
-            </button>
-
-
-            <button
-                type="button"
-                class="nav-button"
-                id="todayNav"
-                onclick="showPage('todayPage', this)"
-            >
-                <span class="nav-icon">📊</span>
-                <span>Today</span>
-            </button>
-
-
-            <button
-                type="button"
-                class="nav-button hidden"
-                id="menuSettingsButton"
-                onclick="showPage('menuSettingsPage', this)"
-            >
-                <span class="nav-icon">⚙️</span>
-                <span>Menu</span>
-            </button>
-
-        </nav>
+        </div>
+
+        <button
+            class="primary-button login-button"
+            onclick="loginUser()"
+        >
+            Login
+        </button>
+
+        <p id="loginError" class="error-message"></p>
 
     </div>
 
+</section>
 
-    <!-- ==============================
-         CUSTOMIZATION MODAL
-         ============================== -->
 
-    <div
-        id="customizationModal"
-        class="modal hidden"
-    >
+<!-- =========================================================
+     MAIN APP
+========================================================= -->
 
-        <div class="modal-overlay" onclick="closeCustomization()"></div>
+<div id="appContent" class="app-content hidden">
 
-        <div class="modal-card">
+    <!-- HEADER -->
 
-            <div class="modal-header">
+    <header class="app-header">
+
+        <div>
+            <h1>☕ Chai Mohalla</h1>
+            <span id="userRole">Staff</span>
+        </div>
+
+        <button
+            class="logout-button"
+            onclick="logoutUser()"
+        >
+            Logout
+        </button>
+
+    </header>
+
+
+    <!-- =====================================================
+         NEW ORDER PAGE
+    ====================================================== -->
+
+    <main>
+
+        <section
+            id="newOrderPage"
+            class="page active-page"
+        >
+
+            <div class="page-header">
 
                 <div>
-                    <h2 id="customizationTitle">
-                        Customize Item
-                    </h2>
-
-                    <p id="customizationPrice">
-                        ₹0
-                    </p>
+                    <h2>New Order</h2>
+                    <p>Select items to create an order.</p>
                 </div>
 
                 <button
-                    type="button"
-                    class="close-button"
-                    onclick="closeCustomization()"
+                    class="cart-button"
+                    onclick="openCart()"
                 >
-                    ×
+                    🛒 Cart
+                    <span id="cartCount">0</span>
                 </button>
+
+            </div>
+
+
+            <!-- Search -->
+
+            <div class="search-container">
+
+                <input
+                    type="search"
+                    id="menuSearch"
+                    placeholder="Search menu..."
+                    oninput="searchMenu()"
+                >
+
+            </div>
+
+
+            <!-- Menu -->
+
+            <div
+                id="menuContainer"
+                class="menu-grid"
+            ></div>
+
+        </section>
+
+
+        <!-- =================================================
+             ACTIVE ORDERS
+        ================================================== -->
+
+        <section
+            id="activePage"
+            class="page"
+        >
+
+            <div class="page-header">
+
+                <div>
+                    <h2>Active Orders</h2>
+                    <p>Orders currently being prepared.</p>
+                </div>
+
+            </div>
+
+            <div
+                id="activeOrdersContainer"
+                class="orders-container"
+            ></div>
+
+        </section>
+
+
+        <!-- =================================================
+             TODAY
+        ================================================== -->
+
+        <section
+            id="todayPage"
+            class="page"
+        >
+
+            <div class="page-header">
+
+                <div>
+                    <h2>Today's Orders</h2>
+
+                    <p id="summaryDate"></p>
+                </div>
+
+            </div>
+
+
+            <div class="summary-grid">
+
+                <div class="summary-card">
+                    <span>Total Orders</span>
+                    <strong id="summaryOrders">0</strong>
+                </div>
+
+                <div class="summary-card">
+                    <span>New</span>
+                    <strong id="summaryNew">0</strong>
+                </div>
+
+                <div class="summary-card">
+                    <span>Preparing</span>
+                    <strong id="summaryPreparing">0</strong>
+                </div>
+
+                <div class="summary-card">
+                    <span>Completed</span>
+                    <strong id="summaryCompleted">0</strong>
+                </div>
+
+                <div class="summary-card">
+                    <span>Cancelled</span>
+                    <strong id="summaryCancelled">0</strong>
+                </div>
+
+                <div class="summary-card sales-card">
+                    <span>Sales</span>
+                    <strong id="summarySales">₹0</strong>
+                </div>
 
             </div>
 
 
             <div
-                id="customizationOptions"
-                class="customization-options"
+                id="todayOrdersContainer"
+                class="orders-container"
             ></div>
 
-
-            <div class="customization-section">
-
-                <label>
-                    Quantity
-                </label>
-
-                <div class="quantity-control">
-
-                    <button
-                        type="button"
-                        onclick="changeCustomQuantity(-1)"
-                    >
-                        −
-                    </button>
-
-                    <strong id="customQuantity">
-                        1
-                    </strong>
-
-                    <button
-                        type="button"
-                        onclick="changeCustomQuantity(1)"
-                    >
-                        +
-                    </button>
-
-                </div>
-
-            </div>
+        </section>
 
 
-            <div class="customization-section">
+        <!-- =================================================
+             MENU SETTINGS
+        ================================================== -->
 
-                <label for="customNote">
-                    Special Instructions
-                </label>
+        <section
+            id="menuSettingsPage"
+            class="page"
+        >
 
-                <textarea
-                    id="customNote"
-                    placeholder="Example: Less spicy, less sugar..."
-                ></textarea>
-
-            </div>
-
-
-            <button
-                type="button"
-                class="primary-button full-width"
-                onclick="addCustomizedItem()"
-            >
-                Add to Cart
-            </button>
-
-        </div>
-
-    </div>
-
-
-    <!-- ==============================
-         CART MODAL
-         ============================== -->
-
-    <div
-        id="cartModal"
-        class="modal hidden"
-    >
-
-        <div class="modal-overlay" onclick="closeCart()"></div>
-
-        <div class="modal-card cart-modal-card">
-
-            <div class="modal-header">
+            <div class="page-header">
 
                 <div>
-                    <h2>Your Order</h2>
-                    <p>Review before placing</p>
+                    <h2>Menu Settings</h2>
+                    <p>Admin menu management.</p>
                 </div>
 
                 <button
-                    type="button"
-                    class="close-button"
-                    onclick="closeCart()"
+                    class="primary-button"
+                    onclick="openAddMenuItem()"
                 >
-                    ×
+                    + Add Item
                 </button>
 
             </div>
 
-
             <div
-                id="cartItems"
-                class="cart-items"
+                id="menuSettingsContainer"
+                class="menu-settings-container"
             ></div>
 
+        </section>
 
-            <div class="cart-total-row">
+    </main>
 
-                <span>Total</span>
 
-                <strong id="cartTotal">
+    <!-- =====================================================
+         BOTTOM NAVIGATION
+    ====================================================== -->
+
+    <nav class="bottom-nav">
+
+        <button
+            id="newOrderNav"
+            class="nav-button active"
+            onclick="showPage('newOrderPage')"
+        >
+            <span>🛒</span>
+            <small>New Order</small>
+        </button>
+
+        <button
+            id="activeNav"
+            class="nav-button"
+            onclick="showPage('activePage')"
+        >
+            <span>🔥</span>
+            <small>Active</small>
+        </button>
+
+        <button
+            id="todayNav"
+            class="nav-button"
+            onclick="showPage('todayPage')"
+        >
+            <span>📋</span>
+            <small>Today</small>
+        </button>
+
+        <button
+            id="menuSettingsButton"
+            class="nav-button admin-only"
+            onclick="showPage('menuSettingsPage')"
+        >
+            <span>⚙️</span>
+            <small>Menu</small>
+        </button>
+
+    </nav>
+
+</div>
+
+
+<!-- =========================================================
+     CUSTOMIZATION MODAL
+========================================================= -->
+
+<div
+    id="customizationModal"
+    class="modal hidden"
+>
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <div>
+                <h2 id="customizationTitle">
+                    Customize Item
+                </h2>
+
+                <p id="customizationPrice">
                     ₹0
+                </p>
+            </div>
+
+            <button
+                class="close-button"
+                onclick="closeCustomization()"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <!-- Quantity -->
+
+        <div class="custom-section">
+
+            <h3>Quantity</h3>
+
+            <div class="quantity-control">
+
+                <button onclick="changeCustomQuantity(-1)">
+                    −
+                </button>
+
+                <strong id="customQuantity">
+                    1
                 </strong>
 
+                <button onclick="changeCustomQuantity(1)">
+                    +
+                </button>
+
             </div>
 
+        </div>
 
-            <div class="checkout-section">
+
+        <!-- Addons -->
+
+        <div
+            id="customizationOptions"
+            class="custom-section"
+        ></div>
+
+
+        <!-- Note -->
+
+        <div class="custom-section">
+
+            <label for="customNote">
+                Special Instructions
+            </label>
+
+            <textarea
+                id="customNote"
+                rows="3"
+                placeholder="Example: Less spicy, less sugar..."
+            ></textarea>
+
+        </div>
+
+
+        <button
+            class="primary-button full-width"
+            onclick="addCustomizedItem()"
+        >
+            Add to Cart
+        </button>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     CART MODAL
+========================================================= -->
+
+<div
+    id="cartModal"
+    class="modal hidden"
+>
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2>Your Cart</h2>
+
+            <button
+                class="close-button"
+                onclick="closeCart()"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div
+            id="cartItems"
+            class="cart-items"
+        ></div>
+
+
+        <div class="cart-total-row">
+
+            <span>Total</span>
+
+            <strong id="cartTotal">
+                ₹0
+            </strong>
+
+        </div>
+
+
+        <div class="checkout-section">
+
+            <div class="form-group">
 
                 <label for="customerName">
                     Customer Name
@@ -568,9 +469,13 @@
                 <input
                     type="text"
                     id="customerName"
-                    placeholder="Enter customer name"
+                    placeholder="Customer name"
                 >
 
+            </div>
+
+
+            <div class="form-group">
 
                 <label for="orderType">
                     Order Type
@@ -588,9 +493,13 @@
 
                 </select>
 
+            </div>
+
+
+            <div class="form-group">
 
                 <label for="paymentMethod">
-                    Payment
+                    Payment Method
                 </label>
 
                 <select id="paymentMethod">
@@ -616,8 +525,22 @@
             </div>
 
 
+            <div class="form-group">
+
+                <label for="orderNote">
+                    Order Note
+                </label>
+
+                <textarea
+                    id="orderNote"
+                    rows="2"
+                    placeholder="Optional note"
+                ></textarea>
+
+            </div>
+
+
             <button
-                type="button"
                 class="primary-button full-width"
                 onclick="placeOrder()"
             >
@@ -628,222 +551,175 @@
 
     </div>
 
-
-    <!-- ==============================
-         MENU EDITOR MODAL
-         ============================== -->
-
-    <div
-        id="menuEditorModal"
-        class="modal hidden"
-    >
-
-        <div
-            class="modal-overlay"
-            onclick="closeMenuEditor()"
-        ></div>
-
-        <div class="modal-card">
-
-            <div class="modal-header">
-
-                <div>
-                    <h2 id="menuEditorTitle">
-                        Add Menu Item
-                    </h2>
-
-                    <p>
-                        Manage menu details
-                    </p>
-                </div>
-
-                <button
-                    type="button"
-                    class="close-button"
-                    onclick="closeMenuEditor()"
-                >
-                    ×
-                </button>
-
-            </div>
+</div>
 
 
-            <div class="form-group">
+<!-- =========================================================
+     MENU EDITOR MODAL
+========================================================= -->
 
-                <label for="menuItemName">
-                    Item Name
-                </label>
+<div
+    id="menuEditorModal"
+    class="modal hidden"
+>
 
-                <input
-                    type="text"
-                    id="menuItemName"
-                    placeholder="Example: Paneer Paratha"
-                >
+    <div class="modal-content">
 
-            </div>
+        <div class="modal-header">
 
-
-            <div class="form-group">
-
-                <label for="menuItemCategory">
-                    Category
-                </label>
-
-                <input
-                    type="text"
-                    id="menuItemCategory"
-                    placeholder="Example: Paratha"
-                >
-
-            </div>
-
-
-            <div class="form-group">
-
-                <label for="menuItemPrice">
-                    Base Price
-                </label>
-
-                <input
-                    type="number"
-                    id="menuItemPrice"
-                    min="0"
-                    step="1"
-                    placeholder="100"
-                >
-
-            </div>
-
-
-            <div class="editor-section">
-
-                <div class="editor-section-header">
-
-                    <h3>Add-ons</h3>
-
-                    <button
-                        type="button"
-                        class="small-button"
-                        onclick="addAddonField()"
-                    >
-                        + Add
-                    </button>
-
-                </div>
-
-                <div
-                    id="addonFields"
-                    class="editor-fields"
-                ></div>
-
-            </div>
-
-
-            <div class="editor-section">
-
-                <div class="editor-section-header">
-
-                    <h3>Styles</h3>
-
-                    <button
-                        type="button"
-                        class="small-button"
-                        onclick="addStyleField()"
-                    >
-                        + Add
-                    </button>
-
-                </div>
-
-                <div
-                    id="styleFields"
-                    class="editor-fields"
-                ></div>
-
-            </div>
-
-
-            <div class="form-group checkbox-group">
-
-                <label>
-
-                    <input
-                        type="checkbox"
-                        id="menuItemActive"
-                        checked
-                    >
-
-                    Active
-
-                </label>
-
-            </div>
-
+            <h2 id="menuEditorTitle">
+                Add Menu Item
+            </h2>
 
             <button
-                type="button"
-                class="primary-button full-width"
-                onclick="saveMenuItem()"
+                class="close-button"
+                onclick="closeMenuEditor()"
             >
-                Save Menu Item
+                ×
             </button>
 
         </div>
 
-    </div>
+
+        <input
+            type="hidden"
+            id="editingMenuItemId"
+        >
 
 
-    <!-- ==============================
-         ORDER DETAILS MODAL
-         ============================== -->
+        <div class="form-group">
 
-    <div
-        id="orderDetailsModal"
-        class="modal hidden"
-    >
+            <label for="menuItemName">
+                Item Name
+            </label>
 
-        <div
-            class="modal-overlay"
-            onclick="closeOrderDetails()"
-        ></div>
+            <input
+                type="text"
+                id="menuItemName"
+                placeholder="Example: Paneer Paratha"
+            >
 
-        <div class="modal-card">
+        </div>
 
-            <div class="modal-header">
 
-                <div>
-                    <h2>Order Details</h2>
-                    <p>Complete order information</p>
-                </div>
+        <div class="form-group">
+
+            <label for="menuItemCategory">
+                Category
+            </label>
+
+            <input
+                type="text"
+                id="menuItemCategory"
+                placeholder="Example: Paratha"
+            >
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="menuItemPrice">
+                Base Price
+            </label>
+
+            <input
+                type="number"
+                id="menuItemPrice"
+                min="0"
+                step="1"
+                placeholder="100"
+            >
+
+        </div>
+
+
+        <!-- ADDONS -->
+
+        <div class="form-group">
+
+            <div class="section-title-row">
+
+                <label>
+                    Add-ons
+                </label>
 
                 <button
                     type="button"
-                    class="close-button"
-                    onclick="closeOrderDetails()"
+                    class="small-button"
+                    onclick="addAddonField()"
                 >
-                    ×
+                    + Add Add-on
                 </button>
 
             </div>
 
-
-            <div
-                id="orderDetailsContent"
-                class="order-details-content"
-            ></div>
+            <div id="addonFields"></div>
 
         </div>
 
+
+        <label class="checkbox-row">
+
+            <input
+                type="checkbox"
+                id="menuItemActive"
+                checked
+            >
+
+            <span>
+                Active / Available
+            </span>
+
+        </label>
+
+
+        <button
+            class="primary-button full-width"
+            onclick="saveMenuItem()"
+        >
+            Save Menu Item
+        </button>
+
     </div>
 
+</div>
 
-    <!-- ==============================
-         SUPABASE
-         ============================== -->
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- =========================================================
+     ORDER DETAILS MODAL
+========================================================= -->
 
-    <script src="app.js"></script>
+<div
+    id="orderDetailsModal"
+    class="modal hidden"
+>
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2>
+                Order Details
+            </h2>
+
+            <button
+                class="close-button"
+                onclick="closeOrderDetails()"
+            >
+                ×
+            </button>
+
+        </div>
+
+        <div id="orderDetailsContent"></div>
+
+    </div>
+
+</div>
+
+
+<script src="app.js"></script>
 
 </body>
 </html>
